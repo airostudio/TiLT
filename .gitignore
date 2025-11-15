@@ -1,0 +1,58 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Data directories (ROMs and tables are user-provided)
+data/roms/
+data/tables/
+data/media/
+data/backglasses/
+
+# Configuration files (user-specific)
+*.conf
+config/*.ini
+
+# Logs
+*.log
+logs/
+
+# Package files
+*.zip
+*.tar.gz
+*.tpkg
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*~
