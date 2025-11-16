@@ -53,6 +53,18 @@ TiLT is a unified pinball emulator that combines the best features from PinMAME,
 - ✅ Automatic updates
 - ✅ Modular component installation
 
+### **NEW! Intelligent ZIP Import System**
+- ✅ **Drag & Drop Interface** - Simply drag ZIP files to import
+- ✅ **Smart File Classification** - Automatically detects file types
+- ✅ **Intelligent Organization** - Places files in correct folders
+- ✅ **Batch Import** - Import multiple ZIP files at once
+- ✅ **Preview Before Import** - See what will be imported
+- ✅ **Automatic Backups** - Safely backup existing files
+- ✅ **Progress Tracking** - Real-time import progress
+- ✅ **Command Line Tool** - `tilt-import` for automation
+
+See [IMPORT_GUIDE.md](IMPORT_GUIDE.md) for detailed import instructions.
+
 ## Quick Start
 
 ### Installation
@@ -125,6 +137,42 @@ cmake -DENABLE_VULKAN=ON \
 ```
 
 ## Usage
+
+### Importing Content (NEW!)
+
+TiLT makes it incredibly easy to import tables, ROMs, and media with the intelligent ZIP import system:
+
+#### Method 1: Drag & Drop (Easiest)
+```bash
+# Launch the import GUI
+tilt-import -g
+
+# Then drag your ZIP files into the window
+```
+
+#### Method 2: Command Line
+```bash
+# Import a single ZIP file
+tilt-import MyTable.zip
+
+# Import multiple files
+tilt-import table1.zip table2.zip table3.zip
+
+# Import all ZIPs from a directory
+tilt-import -d ~/Downloads
+
+# Preview before importing
+tilt-import -p MyTable.zip
+```
+
+#### What Gets Imported?
+- 📦 **Tables** (.vpx, .fp, .fpt) → Organized into `data/tables/`
+- 🎮 **ROMs** (.zip) → Organized into `data/roms/`
+- 🖼️ **Backglasses** (.directb2s, .b2s) → Organized into `data/backglasses/`
+- 🎨 **Media** (images, videos, audio) → Organized into `data/media/`
+- ⚡ **PuP Packs** (.pup) → Organized into `data/pup/`
+
+**See the full [Import Guide](IMPORT_GUIDE.md) for detailed instructions.**
 
 ### Launching the Frontend
 ```bash

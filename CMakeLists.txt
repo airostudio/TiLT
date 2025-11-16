@@ -38,12 +38,14 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/display
     ${CMAKE_SOURCE_DIR}/frontend
     ${CMAKE_SOURCE_DIR}/plugins
+    ${CMAKE_SOURCE_DIR}/tools
 )
 
 # Subdirectories
 add_subdirectory(core)
 add_subdirectory(display)
 add_subdirectory(plugins)
+add_subdirectory(tools)
 
 if(BUILD_FRONTEND)
     add_subdirectory(frontend)
@@ -68,4 +70,4 @@ target_link_libraries(tilt
 # Install targets
 install(TARGETS tilt DESTINATION bin)
 install(DIRECTORY data/ DESTINATION share/tilt)
-install(FILES README.md LICENSE DESTINATION share/doc/tilt)
+install(FILES README.md LICENSE IMPORT_GUIDE.md DESTINATION share/doc/tilt)
