@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
         if (launchFrontend) {
             // Launch the frontend
             std::cout << "Launching frontend..." << std::endl;
-            auto launcher = std::make_unique<tilt::frontend::Launcher>(engine.get());
+            auto launcher = std::make_unique<tilt::Launcher>(engine.get());
             launcher->run();
         }
         else if (!tableFile.empty()) {
@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
         else {
             // Default: launch frontend
             std::cout << "No options specified. Launching frontend..." << std::endl;
-            auto launcher = std::make_unique<tilt::frontend::Launcher>(engine.get());
+            auto launcher = std::make_unique<tilt::Launcher>(engine.get());
             launcher->run();
         }
 

@@ -5,6 +5,8 @@
 #ifndef TILT_PHYSICS_BALL_HPP
 #define TILT_PHYSICS_BALL_HPP
 
+#include <cmath>
+
 namespace tilt {
 
 struct Vector3 {

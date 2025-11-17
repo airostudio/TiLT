@@ -3,6 +3,7 @@
  */
 
 #include <iostream>
+#include <cstdint>
 
 namespace tilt {
 

@@ -19,8 +19,6 @@ enum class CPUType {
     ARM         // ARM - used in modern Stern machines
 };
 
-class CPUCore;
-
 class CPUEmulator {
 public:
     CPUEmulator(CPUType type);
@@ -47,7 +45,6 @@ public:
 
 private:
     CPUType type_;
-    std::unique_ptr<CPUCore> core_;
     std::vector<uint8_t> memory_;
 };
 

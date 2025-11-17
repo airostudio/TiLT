@@ -47,29 +47,21 @@ public:
 CPUEmulator::CPUEmulator(CPUType type) : type_(type) {
     memory_.resize(0x10000, 0); // 64KB address space
 
-    switch (type) {
-        case CPUType::M6809:
-            core_ = std::make_unique<CPUCore>();
-            break;
-        default:
-            std::cerr << "[CPU] Unsupported CPU type" << std::endl;
-            break;
-    }
+    // CPU core initialization would go here
+    // For now, this is a placeholder
+    (void)type; // Suppress unused warning
 }
 
 CPUEmulator::~CPUEmulator() {}
 
 void CPUEmulator::reset() {
     std::fill(memory_.begin(), memory_.end(), 0);
-    if (core_) {
-        // core_->reset();
-    }
+    // CPU core reset would go here
 }
 
 uint32_t CPUEmulator::execute(uint32_t cycles) {
-    if (core_) {
-        // return core_->execute(cycles);
-    }
+    // CPU execution would go here
+    // For now, just return the cycles
     return cycles;
 }
 

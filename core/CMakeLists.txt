@@ -6,7 +6,6 @@ add_library(tilt_core STATIC
     emulation/cpu/m6800.cpp
     emulation/cpu/m6809.cpp
     emulation/boards/wpc.cpp
-    emulation/boards/sys11.cpp
     emulation/boards/dataeast.cpp
     emulation/boards/whitestar.cpp
     emulation/sound/sound_emulator.cpp
