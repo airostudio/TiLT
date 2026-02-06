@@ -14,6 +14,7 @@ option(ENABLE_OPENGL "Enable OpenGL renderer" ON)
 option(ENABLE_DX12 "Enable DirectX 12 renderer (Windows only)" ON)
 option(ENABLE_VR "Enable VR support" ON)
 option(BUILD_TESTS "Build tests" OFF)
+option(USE_SYSTEM_LIBS "Use system libraries instead of bundled vendor libs" ON)
 
 # Platform detection
 if(WIN32)
@@ -31,6 +32,71 @@ if(MSVC)
 else()
     add_compile_options(-Wall -Wextra -pedantic)
 endif()
+
+# ============================================================================
+# External Library Detection
+# ============================================================================
+
+# Create vendor directory path
+set(VENDOR_DIR ${CMAKE_SOURCE_DIR}/vendor)
+
+# Find required libraries
+if(USE_SYSTEM_LIBS)
+    # LibArchive - Archive extraction (ZIP, RAR, 7z)
+    find_package(LibArchive REQUIRED)
+    if(LibArchive_FOUND)
+        message(STATUS "Found LibArchive: ${LibArchive_VERSION}")
+        set(ARCHIVE_LIBRARY LibArchive::LibArchive)
+    endif()
+
+    # GLFW - Window and input management
+    if(ENABLE_OPENGL)
+        find_package(glfw3 3.3 REQUIRED)
+        if(glfw3_FOUND)
+            message(STATUS "Found GLFW3: ${glfw3_VERSION}")
+            set(WINDOW_LIBRARY glfw)
+        endif()
+    endif()
+
+    # OpenAL - 3D audio
+    find_package(OpenAL REQUIRED)
+    if(OPENAL_FOUND)
+        message(STATUS "Found OpenAL: ${OPENAL_LIBRARY}")
+        set(AUDIO_LIBRARY OpenAL::OpenAL)
+    endif()
+
+    # pugixml - XML parsing
+    find_package(pugixml REQUIRED)
+    if(pugixml_FOUND)
+        message(STATUS "Found pugixml: ${pugixml_VERSION}")
+        set(XML_LIBRARY pugixml::pugixml)
+    endif()
+
+    # Vulkan SDK (optional)
+    if(ENABLE_VULKAN)
+        find_package(Vulkan)
+        if(Vulkan_FOUND)
+            message(STATUS "Found Vulkan: ${Vulkan_VERSION}")
+        else()
+            message(WARNING "Vulkan SDK not found - disabling Vulkan renderer")
+            set(ENABLE_VULKAN OFF)
+        endif()
+    endif()
+else()
+    message(STATUS "Using bundled vendor libraries from ${VENDOR_DIR}")
+    # For now, we'll use system libs for complex libraries
+    # and bundle header-only libs in vendor/
+endif()
+
+# Header-only libraries (bundled in vendor/)
+include_directories(${VENDOR_DIR}/include)
+
+# Add vendor subdirectory if it exists
+if(EXISTS ${VENDOR_DIR}/CMakeLists.txt)
+    add_subdirectory(vendor)
+endif()
+
+# ============================================================================
 
 # Include directories
 include_directories(

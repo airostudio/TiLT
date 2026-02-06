@@ -2,6 +2,23 @@
 
 This document provides detailed instructions for building TiLT from source on various platforms.
 
+## Dependencies
+
+**IMPORTANT**: TiLT now requires external libraries for production features (archive extraction, rendering, audio, etc.).
+
+👉 **See [BUILD_DEPENDENCIES.md](BUILD_DEPENDENCIES.md) for detailed dependency installation instructions.**
+
+Quick summary of required libraries:
+- **libarchive** - ZIP/RAR/7z extraction
+- **GLFW** - Window management (for OpenGL renderer)
+- **OpenAL** - 3D audio
+- **pugixml** - XML parsing (VPX/B2S files)
+- **Header-only libraries** - GLM, stb_image, GLAD, ChaiScript (bundled in vendor/)
+
+You can build in two modes:
+1. **Production Mode** (recommended) - With all dependencies, full functionality
+2. **Framework Mode** - Without dependencies, framework-only (limited functionality)
+
 ## Prerequisites
 
 ### All Platforms

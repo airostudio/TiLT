@@ -3,6 +3,7 @@
  */
 
 #include "import_manager.hpp"
+#include "archive_extractor.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -29,8 +30,10 @@ ImportManager::ImportManager()
         {".fpt", FileType::Table_FPT},
         {".fp", FileType::Table_FP},
 
-        // ROMs
-        {".zip", FileType::ROM},  // ROM files are often .zip
+        // ROMs (can be ZIP, RAR, or 7z)
+        {".zip", FileType::ROM},
+        {".rar", FileType::ROM},
+        {".7z", FileType::ROM},
         {".u6", FileType::ROM},
         {".u2", FileType::ROM},
 
@@ -122,8 +125,8 @@ FileType ImportManager::classifyFile(const std::string& filename) {
     // Check extension map
     auto it = extensionMap_.find(ext);
     if (it != extensionMap_.end()) {
-        // Special handling for .zip files - could be ROM or table pack
-        if (ext == ".zip") {
+        // Special handling for archive files - could be ROM or table pack
+        if (ext == ".zip" || ext == ".rar" || ext == ".7z") {
             // Check if it's in a ROM context
             std::string lower = filename;
             std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
@@ -284,19 +287,37 @@ void ImportManager::importMultipleZips(const std::vector<std::string>& zipPaths)
 }
 
 void ImportManager::extractZipFile(const std::string& zipPath, const std::string& extractTo) {
-    // This would use a ZIP library like libzip or minizip
-    // For now, this is a placeholder showing the interface
+    std::cout << "[Import Manager] Extracting archive: " << zipPath << std::endl;
 
-    std::cout << "[Import Manager] Extracting ZIP: " << zipPath << std::endl;
+    // Create archive extractor
+    ArchiveExtractor extractor;
+    extractor.setOverwriteExisting(true);
+    extractor.setPreserveTimestamps(true);
+    extractor.setPreservePermissions(true);
 
-    // Actual implementation would:
-    // 1. Open ZIP file
-    // 2. Iterate through entries
-    // 3. Extract each file to extractTo directory
-    // 4. Preserve directory structure if needed
+    // Progress callback for extraction
+    auto progressCb = [](const std::string& currentFile, size_t current, size_t total,
+                         uint64_t bytesProcessed, uint64_t totalBytes) -> bool {
+        if (total > 0) {
+            int percent = static_cast<int>((current * 100) / total);
+            std::cout << "\r[Import Manager] Extracting... " << percent << "% ("
+                      << current << "/" << total << " files)" << std::flush;
+        }
+        return true; // Continue extraction
+    };
 
-    // Placeholder: Create some dummy extracted files for demonstration
-    // In real implementation, this would actually extract the ZIP
+    // Extract archive
+    ExtractionResult result = extractor.extract(zipPath, extractTo, "", progressCb);
+
+    std::cout << std::endl; // New line after progress
+
+    if (!result.success) {
+        throw std::runtime_error("Archive extraction failed: " + result.errorMessage);
+    }
+
+    std::cout << "[Import Manager] Extracted " << result.filesExtracted
+              << " files (" << (result.bytesExtracted / 1024.0 / 1024.0) << " MB) in "
+              << result.durationSeconds << " seconds" << std::endl;
 }
 
 void ImportManager::processExtractedFiles(const std::string& extractPath, ImportPackage& package) {
@@ -357,21 +378,47 @@ bool ImportManager::validateZipFile(const std::string& zipPath) {
         return false;
     }
 
-    if (fs::path(zipPath).extension() != ".zip") {
-        std::cerr << "[Import Manager] Not a ZIP file: " << zipPath << std::endl;
+    // Check if it's a supported archive format
+    if (!ArchiveExtractor::isSupportedArchive(zipPath)) {
+        std::cerr << "[Import Manager] Unsupported archive format: " << zipPath << std::endl;
         return false;
     }
 
-    // Additional validation could check if it's a valid ZIP format
+    // Verify archive integrity
+    ArchiveExtractor extractor;
+    std::string errorMessage;
+    if (!extractor.verifyArchive(zipPath, errorMessage)) {
+        std::cerr << "[Import Manager] Archive verification failed: " << errorMessage << std::endl;
+        return false;
+    }
+
     return true;
 }
 
 std::vector<std::string> ImportManager::previewZipContents(const std::string& zipPath) {
     std::vector<std::string> contents;
 
-    // This would list ZIP contents without extracting
-    // For now, placeholder implementation
-    std::cout << "[Import Manager] Previewing ZIP: " << zipPath << std::endl;
+    std::cout << "[Import Manager] Previewing archive: " << zipPath << std::endl;
+
+    // Create archive extractor and list contents
+    ArchiveExtractor extractor;
+    auto entries = extractor.listContents(zipPath);
+
+    // Get archive info
+    auto info = extractor.getArchiveInfo(zipPath);
+    std::cout << "[Import Manager] Archive format: " << ArchiveExtractor::formatToString(info.format) << std::endl;
+    std::cout << "[Import Manager] Total files: " << info.fileCount << std::endl;
+    std::cout << "[Import Manager] Total size: " << (info.totalUncompressedSize / 1024.0 / 1024.0) << " MB" << std::endl;
+    if (info.isEncrypted) {
+        std::cout << "[Import Manager] WARNING: Archive is password protected" << std::endl;
+    }
+
+    // Extract filenames
+    for (const auto& entry : entries) {
+        contents.push_back(entry.pathname);
+        std::cout << "[Import Manager]   - " << entry.pathname
+                  << " (" << (entry.size / 1024.0) << " KB)" << std::endl;
+    }
 
     return contents;
 }
@@ -465,18 +512,22 @@ void ImportManager::setBasePath(const std::string& path) {
 void ImportManager::importDirectory(const std::string& dirPath) {
     std::cout << "[Import Manager] Scanning directory: " << dirPath << std::endl;
 
-    // Find all ZIP files in directory
-    std::vector<std::string> zipFiles;
+    // Find all supported archive files in directory
+    std::vector<std::string> archiveFiles;
     for (const auto& entry : fs::directory_iterator(dirPath)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".zip") {
-            zipFiles.push_back(entry.path().string());
+        if (entry.is_regular_file()) {
+            std::string path = entry.path().string();
+            if (ArchiveExtractor::isSupportedArchive(path)) {
+                archiveFiles.push_back(path);
+            }
         }
     }
 
-    if (!zipFiles.empty()) {
-        importMultipleZips(zipFiles);
+    if (!archiveFiles.empty()) {
+        std::cout << "[Import Manager] Found " << archiveFiles.size() << " archive files" << std::endl;
+        importMultipleZips(archiveFiles);
     } else {
-        std::cout << "[Import Manager] No ZIP files found in: " << dirPath << std::endl;
+        std::cout << "[Import Manager] No supported archive files found in: " << dirPath << std::endl;
     }
 }
 
