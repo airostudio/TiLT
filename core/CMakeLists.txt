@@ -24,6 +24,10 @@ add_library(tilt_core STATIC
     rendering/opengl/gl_texture.cpp
     rendering/opengl/gl_mesh.cpp
     audio/audio_engine.cpp
+    audio/al_audio_engine.cpp
+    audio/al_sound_buffer.cpp
+    audio/al_sound_source.cpp
+    audio/audio_decoder.cpp
     audio/mixer.cpp
     scripting/script_engine.cpp
     scripting/vbscript_compat.cpp
@@ -44,4 +48,11 @@ endif()
 find_package(OpenGL)
 if(OPENGL_FOUND)
     target_link_libraries(tilt_core OpenGL::GL)
+endif()
+
+# Link OpenAL if available
+if(TARGET OpenAL::OpenAL)
+    target_link_libraries(tilt_core OpenAL::OpenAL)
+elseif(AUDIO_LIBRARY)
+    target_link_libraries(tilt_core ${AUDIO_LIBRARY})
 endif()

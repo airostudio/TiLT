@@ -1,39 +1,23 @@
 /*
- * Audio Engine
+ * Audio Engine (Production - OpenAL Integration)
  */
 
 #ifndef TILT_AUDIO_ENGINE_HPP
 #define TILT_AUDIO_ENGINE_HPP
 
 #include <string>
+#include <memory>
 
 namespace tilt {
 
-class AudioEngine {
-public:
-    AudioEngine();
-    ~AudioEngine();
-
-    void update(float deltaTime);
-
-    // Playback control
-    void playSound(const std::string& soundFile);
-    void playMusic(const std::string& musicFile);
-    void stopSound();
-    void stopMusic();
-
-    // Volume control
-    void setMasterVolume(float volume);
-    void setMusicVolume(float volume);
-    void setSFXVolume(float volume);
-
-private:
-    bool initialized_;
-    float masterVolume_;
-    float musicVolume_;
-    float sfxVolume_;
-};
+// Forward declarations
+class AudioEngine;
+class SoundBuffer;
+class SoundSource;
 
 } // namespace tilt
+
+// Import the production OpenAL audio engine
+#include "al_audio_engine.hpp"
 
 #endif // TILT_AUDIO_ENGINE_HPP
