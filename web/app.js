@@ -176,8 +176,6 @@ const WasmLoader = (() => {
           console.error('[TiLT] Abort:', what);
           reject(new Error('WASM abort: ' + what));
         },
-
-        INITIAL_MEMORY: 134217728,
       };
 
       const script   = document.createElement('script');
