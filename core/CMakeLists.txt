@@ -1,4 +1,4 @@
-add_library(tilt_core STATIC
+set(TILT_CORE_SOURCES
     engine.cpp
     config.cpp
     emulation/rom_emulator.cpp
@@ -19,11 +19,6 @@ add_library(tilt_core STATIC
     rendering/shader_manager.cpp
     rendering/window.cpp
     rendering/vulkan/vulkan_renderer.cpp
-    rendering/opengl/opengl_renderer.cpp
-    rendering/opengl/gl_shader.cpp
-    rendering/opengl/gl_texture.cpp
-    rendering/opengl/gl_mesh.cpp
-    audio/audio_engine.cpp
     audio/al_audio_engine.cpp
     audio/al_sound_buffer.cpp
     audio/al_sound_source.cpp
@@ -33,24 +28,41 @@ add_library(tilt_core STATIC
     scripting/vbscript_compat.cpp
 )
 
+if(ENABLE_OPENGL)
+    list(APPEND TILT_CORE_SOURCES
+        rendering/opengl/opengl_renderer.cpp
+        rendering/opengl/gl_shader.cpp
+        rendering/opengl/gl_texture.cpp
+        rendering/opengl/gl_mesh.cpp
+    )
+    # glad.c is the OpenGL function loader; compile it as part of the core lib
+    set(GLAD_C ${CMAKE_SOURCE_DIR}/vendor/glad.c)
+    if(EXISTS ${GLAD_C})
+        list(APPEND TILT_CORE_SOURCES ${GLAD_C})
+    endif()
+endif()
+
+add_library(tilt_core STATIC ${TILT_CORE_SOURCES})
+
 target_include_directories(tilt_core PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Link GLFW if available
-if(TARGET glfw)
-    target_link_libraries(tilt_core glfw)
-elseif(WINDOW_LIBRARY)
-    target_link_libraries(tilt_core ${WINDOW_LIBRARY})
+# Link GLFW (only needed when OpenGL is enabled)
+if(ENABLE_OPENGL)
+    if(TARGET glfw)
+        target_link_libraries(tilt_core glfw)
+    elseif(WINDOW_LIBRARY)
+        target_link_libraries(tilt_core ${WINDOW_LIBRARY})
+    endif()
+
+    find_package(OpenGL)
+    if(OPENGL_FOUND)
+        target_link_libraries(tilt_core OpenGL::GL)
+    endif()
 endif()
 
-# Link OpenGL
-find_package(OpenGL)
-if(OPENGL_FOUND)
-    target_link_libraries(tilt_core OpenGL::GL)
-endif()
-
-# Link OpenAL if available
+# Link OpenAL
 if(TARGET OpenAL::OpenAL)
     target_link_libraries(tilt_core OpenAL::OpenAL)
 elseif(AUDIO_LIBRARY)

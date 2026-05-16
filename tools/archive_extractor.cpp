@@ -386,7 +386,9 @@ bool ArchiveExtractor::setFilePermissions(const std::string& path, mode_t mode) 
 
 bool ArchiveExtractor::setFileTimestamp(const std::string& path, time_t mtime) {
     try {
-        auto ftime = fs::file_time_type::clock::from_time_t(mtime);
+        // file_clock::from_time_t isn't guaranteed; go via system_clock instead.
+        auto sys_tp = std::chrono::system_clock::from_time_t(mtime);
+        auto ftime  = std::chrono::clock_cast<fs::file_time_type::clock>(sys_tp);
         fs::last_write_time(path, ftime);
         return true;
     } catch (const fs::filesystem_error& e) {

@@ -16,7 +16,7 @@
 #define DR_FLAC_IMPLEMENTATION
 #include <dr_libs/dr_flac.h>
 
-#define STB_VORBIS_HEADER_ONLY
+// stb_vorbis: include the full implementation (not header-only) in this TU
 #include <stb/stb_vorbis.c>
 
 namespace tilt {
