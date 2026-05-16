@@ -3,37 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="TiLT — Totally Integrated Luxurious Tables. Play classic pinball machines in your browser. Powered by WebAssembly." />
-  <title>TiLT — Totally Integrated Luxurious Tables</title>
+  <meta name="description" content="TiLT — Totally Integrated Luxurious Tables. Play classic pinball and arcade games in your browser. Powered by WebAssembly." />
+  <title>TiLT — Arcade &amp; Pinball</title>
+
+  <!-- 80s arcade fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;600;700;900&display=swap"
+        rel="stylesheet" crossorigin="anonymous" />
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
   <!-- ── Top navigation bar ─────────────────────────────────────────────── -->
   <header class="top-nav" id="top-nav">
-    <div class="nav-brand">
-      <div class="logo-mark">T</div>
+    <div class="nav-brand" role="banner">
+      <div class="logo-mark" aria-hidden="true">T</div>
       <div class="logo-text">
         <span class="logo-title">TiLT</span>
-        <span class="logo-sub">v1.0.0</span>
+        <span class="logo-sub">ARCADE &amp; PINBALL</span>
       </div>
     </div>
 
     <nav class="nav-links" role="navigation" aria-label="Main navigation">
       <button class="nav-tab active" data-section="library" aria-current="page">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-        Library
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Library</span>
       </button>
       <button class="nav-tab" data-section="upload" aria-current="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
-        Upload
+        <span>Upload</span>
       </button>
       <a class="nav-tab nav-external"
-         href="https://github.com/yourusername/tilt"
+         href="https://github.com/airostudio/tilt"
          target="_blank" rel="noopener noreferrer"
          aria-label="GitHub repository (opens in new tab)">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 00-3.16 19.5c.5.08.66-.22.66-.48v-1.7C6.73 19.91 6.14 18 6.14 18A2.69 2.69 0 004.46 16.5c-1.27-.86.1-.85.1-.85a2.14 2.14 0 011.56 1.05 2.17 2.17 0 002.97.85 2.16 2.16 0 01.64-1.36c-2.24-.26-4.6-1.12-4.6-5a3.89 3.89 0 011.04-2.7 3.6 3.6 0 01.1-2.66s.84-.27 2.75 1.02a9.58 9.58 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02a3.6 3.6 0 01.1 2.66 3.89 3.89 0 011.04 2.7c0 3.89-2.37 4.74-4.62 4.99a2.43 2.43 0 01.69 1.88v2.8c0 .27.16.58.67.48A10 10 0 0012 2z" fill="currentColor" stroke="none"/></svg>
-        GitHub
+        <span>GitHub</span>
       </a>
     </nav>
   </header>
@@ -42,40 +49,43 @@
   <main class="spa-main" id="spa-main">
 
     <!-- ── SECTION: Library ─────────────────────────────────────────────── -->
-    <section class="spa-section active" id="section-library" aria-label="Table library">
+    <section class="spa-section active" id="section-library" aria-label="Game library">
 
-      <!-- Sub-header: search + filter -->
+      <!-- Sub-header: search + filters -->
       <header class="section-header">
         <div class="search-wrap">
           <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input id="searchInput" type="search" placeholder="Search tables…" autocomplete="off" aria-label="Search tables" />
+          <input id="searchInput" type="search" placeholder="Search games…" autocomplete="off" aria-label="Search games" />
+        </div>
+        <div class="type-filter" role="group" aria-label="Filter by type">
+          <button class="type-btn active" data-type="all">ALL</button>
+          <button class="type-btn" data-type="pinball">PINBALL</button>
+          <button class="type-btn" data-type="arcade">ARCADE</button>
         </div>
         <div class="header-actions">
           <select id="filterManufacturer" title="Filter by manufacturer" aria-label="Filter by manufacturer">
-            <option value="">All manufacturers</option>
-            <option value="Williams">Williams</option>
-            <option value="Bally">Bally</option>
-            <option value="Stern">Stern</option>
-            <option value="Data East">Data East</option>
+            <option value="">All</option>
           </select>
         </div>
       </header>
 
-      <!-- "Featured" demo tables (no file required) -->
-      <div class="section-label">Featured tables</div>
-      <div class="table-stats" id="tableStats">12 classic tables — demo data</div>
-      <div id="tableGrid" class="table-grid" role="list"></div>
+      <!-- Featured tables from the server registry -->
+      <div class="section-label" id="featuredLabel">Featured Games</div>
+      <div class="table-stats" id="tableStats">Loading registry…</div>
+      <div id="tableGrid" class="table-grid" role="list" aria-label="Featured games"></div>
 
-      <!-- Uploaded tables (from IndexedDB) -->
-      <div class="section-label" id="userTablesLabel" style="display:none">Your tables</div>
-      <div id="userGrid" class="table-grid" role="list"></div>
+      <!-- Uploaded tables (IndexedDB) -->
+      <div class="section-label" id="userTablesLabel" style="display:none">Your Uploads</div>
+      <div id="userGrid" class="table-grid" role="list" aria-label="Your uploaded tables"></div>
 
     </section>
 
     <!-- ── SECTION: Upload ──────────────────────────────────────────────── -->
-    <section class="spa-section" id="section-upload" aria-label="Upload tables">
+    <section class="spa-section" id="section-upload" aria-label="Upload games">
       <header class="section-header" style="border-bottom:none; padding-bottom:0">
-        <h2 style="font-size:17px; font-weight:700">Upload Tables</h2>
+        <h2 style="font-family:var(--font-pixel);font-size:10px;color:var(--cyan);text-shadow:var(--glow-cyan);letter-spacing:0.1em">
+          Upload Tables
+        </h2>
       </header>
 
       <div class="upload-content">
@@ -91,7 +101,7 @@
               <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
             </svg>
             <p class="upload-title">Drop table files here</p>
-            <p class="upload-sub" id="upload-hint">Supports .vpx, .fpt, and ROM .zip files</p>
+            <p class="upload-sub" id="upload-hint">Supports .vpx, .fpt, .vpt and ROM .zip files</p>
             <button class="btn btn-primary" id="uploadPickBtn">Browse files&hellip;</button>
             <input type="file" id="fileInput" multiple
                    accept=".vpx,.fpt,.zip,.vpt"
@@ -99,20 +109,20 @@
           </div>
         </div>
 
-        <!-- Upload progress list -->
+        <!-- Upload queue -->
         <ul class="upload-queue" id="uploadQueue" aria-label="Upload progress" aria-live="polite"></ul>
 
-        <!-- File format reference -->
+        <!-- Format reference -->
         <div class="upload-formats">
-          <h3>Supported formats</h3>
+          <h3>Supported Formats</h3>
           <div class="format-grid">
             <div class="format-item">
               <span class="format-ext">.vpx</span>
-              <span class="format-desc">Visual Pinball X table</span>
+              <span class="format-desc">Visual Pinball X</span>
             </div>
             <div class="format-item">
               <span class="format-ext">.fpt</span>
-              <span class="format-desc">Future Pinball table</span>
+              <span class="format-desc">Future Pinball</span>
             </div>
             <div class="format-item">
               <span class="format-ext">.vpt</span>
@@ -123,32 +133,26 @@
               <span class="format-desc">ROM archive</span>
             </div>
           </div>
-          <p class="format-note">Files are stored locally in your browser's IndexedDB — nothing is uploaded to a server.</p>
+          <p class="format-note">Files are stored locally in your browser — nothing leaves your device.</p>
         </div>
       </div>
     </section>
 
   </main>
 
-  <!-- ── LAUNCHER overlay (shown when a table is playing) ─────────────── -->
-  <div class="launcher-overlay hidden" id="launcher" role="dialog" aria-modal="true" aria-label="Pinball game">
-    <!-- Canvas container — the WebGL canvas lives here while a game is running -->
+  <!-- ── LAUNCHER overlay ───────────────────────────────────────────────── -->
+  <div class="launcher-overlay hidden" id="launcher" role="dialog" aria-modal="true" aria-label="Game running">
     <div class="canvas-container" id="canvasContainer">
-      <!-- Emscripten writes to #canvas.  We create it here so it exists in
-           the DOM before tilt.js loads. -->
-      <canvas id="canvas" oncontextmenu="event.preventDefault()" aria-label="Pinball game canvas"></canvas>
-
-      <!-- Engine loading overlay (shown until WASM is ready) -->
+      <canvas id="canvas" oncontextmenu="event.preventDefault()" aria-label="Game canvas"></canvas>
       <div class="loading-overlay" id="engineLoading">
         <div class="loading-spinner" aria-hidden="true"></div>
-        <div class="loading-text" id="engineStatus">Downloading engine&hellip;</div>
+        <div class="loading-text" id="engineStatus">Loading engine&hellip;</div>
         <div class="loading-progress-track">
           <div class="loading-progress-fill" id="engineProgressFill"></div>
         </div>
       </div>
     </div>
 
-    <!-- Launcher controls bar -->
     <div class="launcher-controls" id="launcherControls">
       <div class="launcher-title" id="launcherTitle">Playing&hellip;</div>
       <div class="launcher-actions">
@@ -174,24 +178,21 @@
             <line x1="19" y1="12" x2="5" y2="12"/>
             <polyline points="12 19 5 12 12 5"/>
           </svg>
-          Library
+          <span>Library</span>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ── Download / "coming soon" modal (for featured demo tables) ─────── -->
+  <!-- ── Coming-soon modal ──────────────────────────────────────────────── -->
   <div id="comingSoonModal" class="modal hidden"
        role="dialog" aria-modal="true" aria-labelledby="csmTitle">
     <div class="modal-backdrop" id="csmBackdrop"></div>
     <div class="modal-card">
       <div class="modal-icon">🎰</div>
-      <h2 id="csmTitle">Coming soon on the web</h2>
-      <p>Web playback for <strong id="csmTableName"></strong> is in progress.</p>
-      <p>To play now, <a href="https://github.com/yourusername/tilt/releases" target="_blank" rel="noopener noreferrer">download the desktop app</a> and load the table file directly.</p>
-      <p style="font-size:11px;color:var(--text-dim);margin-top:4px">
-        Or upload your own .vpx / .fpt file using the Upload tab — user-supplied tables <em>do</em> run in the browser.
-      </p>
+      <h2 id="csmTitle">Coming Soon</h2>
+      <p>Web playback for <strong class="modal-table-name" id="csmTableName"></strong> is in progress.</p>
+      <p>Download the desktop app to play now, or upload your own .vpx / .fpt file to run it here.</p>
       <div class="modal-actions">
         <button class="btn btn-primary" id="csmUploadBtn">Upload a table</button>
         <button class="btn btn-secondary" id="csmCloseBtn">Close</button>

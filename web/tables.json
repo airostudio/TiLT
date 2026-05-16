@@ -1,0 +1,204 @@
+{
+  "version": "2",
+  "updated": "2026-05-16",
+  "entries": [
+    {
+      "id": "medieval-madness",
+      "name": "Medieval Madness",
+      "manufacturer": "Williams",
+      "year": 1997,
+      "rating": 5.0,
+      "type": "pinball",
+      "badge": "Classic",
+      "screenshot": "screenshots/medieval-madness.jpg",
+      "description": "Storm the castle! Arguably the greatest pinball machine ever made."
+    },
+    {
+      "id": "attack-from-mars",
+      "name": "Attack from Mars",
+      "manufacturer": "Bally",
+      "year": 1995,
+      "rating": 4.9,
+      "type": "pinball",
+      "badge": "Classic",
+      "screenshot": "screenshots/attack-from-mars.jpg",
+      "description": "Defend Earth from Martian invaders in this beloved Bally classic."
+    },
+    {
+      "id": "addams-family",
+      "name": "The Addams Family",
+      "manufacturer": "Bally",
+      "year": 1992,
+      "rating": 4.9,
+      "type": "pinball",
+      "badge": "Iconic",
+      "screenshot": "screenshots/addams-family.jpg",
+      "description": "The best-selling pinball machine of all time. They're creepy and they're kooky."
+    },
+    {
+      "id": "theatre-of-magic",
+      "name": "Theatre of Magic",
+      "manufacturer": "Bally",
+      "year": 1995,
+      "rating": 4.8,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/theatre-of-magic.jpg",
+      "description": "A magical journey through a world of illusions and mystery."
+    },
+    {
+      "id": "twilight-zone",
+      "name": "Twilight Zone",
+      "manufacturer": "Williams",
+      "year": 1993,
+      "rating": 4.8,
+      "type": "pinball",
+      "badge": "Iconic",
+      "screenshot": "screenshots/twilight-zone.jpg",
+      "description": "You're traveling into a dimension of sight and sound. The most complex pinball ever."
+    },
+    {
+      "id": "indiana-jones",
+      "name": "Indiana Jones",
+      "manufacturer": "Williams",
+      "year": 1993,
+      "rating": 4.7,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/indiana-jones.jpg",
+      "description": "Why did it have to be snakes? Adventure awaits on this Williams gem."
+    },
+    {
+      "id": "monster-bash",
+      "name": "Monster Bash",
+      "manufacturer": "Williams",
+      "year": 1998,
+      "rating": 4.7,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/monster-bash.jpg",
+      "description": "Join the monster rock band. The last great Williams pinball machine."
+    },
+    {
+      "id": "scared-stiff",
+      "name": "Scared Stiff",
+      "manufacturer": "Bally",
+      "year": 1996,
+      "rating": 4.6,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/scared-stiff.jpg",
+      "description": "Elvira hosts this spine-tingling pinball adventure."
+    },
+    {
+      "id": "star-trek-tng",
+      "name": "Star Trek: TNG",
+      "manufacturer": "Williams",
+      "year": 1993,
+      "rating": 4.6,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/star-trek-tng.jpg",
+      "description": "Engage! The most technically ambitious pinball of the early 90s."
+    },
+    {
+      "id": "cirqus-voltaire",
+      "name": "Cirqus Voltaire",
+      "manufacturer": "Williams",
+      "year": 1997,
+      "rating": 4.5,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/cirqus-voltaire.jpg",
+      "description": "Join the Cirqus! A quirky, colorful masterpiece by Pat Lawlor."
+    },
+    {
+      "id": "junk-yard",
+      "name": "Junk Yard",
+      "manufacturer": "Williams",
+      "year": 1996,
+      "rating": 4.4,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/junk-yard.jpg",
+      "description": "Search the junkyard for parts to build a time machine."
+    },
+    {
+      "id": "no-good-gofers",
+      "name": "No Good Gofers",
+      "manufacturer": "Williams",
+      "year": 1997,
+      "rating": 4.3,
+      "type": "pinball",
+      "badge": null,
+      "screenshot": "screenshots/no-good-gofers.jpg",
+      "description": "Putt-putt chaos as you battle two mischievous gophers on the golf course."
+    },
+    {
+      "id": "pac-man",
+      "name": "Pac-Man",
+      "manufacturer": "Namco",
+      "year": 1980,
+      "rating": 5.0,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/pac-man.jpg",
+      "description": "Waka waka waka. The most iconic arcade game ever created."
+    },
+    {
+      "id": "donkey-kong",
+      "name": "Donkey Kong",
+      "manufacturer": "Nintendo",
+      "year": 1981,
+      "rating": 4.9,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/donkey-kong.jpg",
+      "description": "Jumpman vs. the big ape. Mario's debut on the arcade scene."
+    },
+    {
+      "id": "galaga",
+      "name": "Galaga",
+      "manufacturer": "Namco",
+      "year": 1981,
+      "rating": 4.9,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/galaga.jpg",
+      "description": "The evolution of Galaxian. Challenge Stage still blows minds."
+    },
+    {
+      "id": "space-invaders",
+      "name": "Space Invaders",
+      "manufacturer": "Taito",
+      "year": 1978,
+      "rating": 4.8,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/space-invaders.jpg",
+      "description": "The game that started it all. Defend Earth from wave after wave."
+    },
+    {
+      "id": "defender",
+      "name": "Defender",
+      "manufacturer": "Williams",
+      "year": 1981,
+      "rating": 4.7,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/defender.jpg",
+      "description": "Protect the humanoids! The most complex arcade game of its era."
+    },
+    {
+      "id": "tempest",
+      "name": "Tempest",
+      "manufacturer": "Atari",
+      "year": 1981,
+      "rating": 4.7,
+      "type": "arcade",
+      "badge": "Arcade",
+      "screenshot": "screenshots/tempest.jpg",
+      "description": "Vector graphics at their finest. Zap the creatures crawling up the tubes."
+    }
+  ]
+}
