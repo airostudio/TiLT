@@ -13,6 +13,7 @@
   --text:      #e8e8f0;
   --text-dim:  #7878a0;
   --radius:    8px;
+  /* Kept for backwards compat but no longer used as layout var in SPA mode */
   --sidebar-w: 200px;
 }
 
@@ -31,9 +32,71 @@ svg {
   flex-shrink: 0;
 }
 
-/* ── Layout ──────────────────────────────────────────────────────────────── */
-body { display: flex; min-height: 100vh; }
+/* ── Top navigation bar (SPA layout) ─────────────────────────────────────── */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  width: 100%;
+  height: 52px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 24px;
+  flex-shrink: 0;
+}
 
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-tab:hover  { background: var(--surface2); color: var(--text); }
+.nav-tab.active { background: var(--surface2); color: var(--accent); }
+.nav-external   { margin-left: auto; }
+
+/* ── SPA layout ───────────────────────────────────────────────────────────── */
+body { display: flex; flex-direction: column; min-height: 100vh; }
+
+.spa-main {
+  flex: 1;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.spa-section       { display: none; flex-direction: column; flex: 1; }
+.spa-section.active { display: flex; }
+
+/* ── Legacy sidebar layout (kept for any non-SPA pages) ──────────────────── */
 .sidebar {
   width: var(--sidebar-w);
   background: var(--surface);
@@ -56,7 +119,7 @@ body { display: flex; min-height: 100vh; }
   flex-direction: column;
 }
 
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+/* ── Sidebar brand ───────────────────────────────────────────────────────── */
 .sidebar-logo {
   display: flex;
   align-items: center;
@@ -100,15 +163,27 @@ body { display: flex; min-height: 100vh; }
   width: 100%; justify-content: center;
 }
 
-/* ── Views ───────────────────────────────────────────────────────────────── */
+/* ── Views / sections ────────────────────────────────────────────────────── */
 .view { display: none; flex-direction: column; flex: 1; }
 .view.active { display: flex; }
 
+.section-header,
 .view-header {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 16px 20px; border-bottom: 1px solid var(--border);
   background: var(--surface); flex-shrink: 0;
-  position: sticky; top: 0; z-index: 10;
+  position: sticky; top: 52px; z-index: 10;
+}
+
+/* ── Section label (between grid groups) ─────────────────────────────────── */
+.section-label {
+  padding: 12px 20px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  flex-shrink: 0;
 }
 
 /* ── Search bar ──────────────────────────────────────────────────────────── */
@@ -182,6 +257,10 @@ select:focus { border-color: var(--accent); }
   box-shadow: 0 6px 24px rgba(124,92,252,.2);
 }
 
+/* User-uploaded table variant */
+.user-card { border-color: rgba(124,92,252,.25); }
+.user-card:hover { border-color: var(--accent-h); }
+
 .card-thumb {
   width: 100%; aspect-ratio: 3/4;
   background: var(--surface2);
@@ -189,11 +268,16 @@ select:focus { border-color: var(--accent); }
   font-size: 48px; color: var(--text-dim);
   position: relative; overflow: hidden;
 }
-.card-thumb .card-badge {
+.card-badge {
   position: absolute; bottom: 8px; left: 8px;
   background: var(--accent); color: #fff;
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   padding: 2px 6px; border-radius: 4px;
+}
+.card-badge-user {
+  background: rgba(62,207,142,.2);
+  color: var(--success);
+  border: 1px solid rgba(62,207,142,.4);
 }
 
 .card-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
@@ -206,6 +290,244 @@ select:focus { border-color: var(--accent); }
   border-top: 1px solid var(--border);
 }
 .card-actions .btn { flex: 1; justify-content: center; padding: 6px 8px; font-size: 12px; }
+
+/* ── Canvas container ────────────────────────────────────────────────────── */
+/* Used inside the launcher overlay; fills the upper region of the overlay. */
+.canvas-container {
+  flex: 1;
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  min-height: 0; /* allow flex children to shrink */
+}
+
+#canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  /* Keep pixel art and DMD overlays sharp */
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  /* Fallback: if Emscripten hasn't sized it yet, make it visible */
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ── Loading overlay (inside canvas-container) ───────────────────────────── */
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--bg);
+  transition: opacity 0.4s ease;
+}
+.loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+.loading-overlay.hidden   { display: none; }
+
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 240px;
+}
+
+.loading-progress-track {
+  width: 200px; height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loading-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-h));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* ── Launcher overlay ────────────────────────────────────────────────────── */
+.launcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.3s ease;
+}
+.launcher-overlay.hidden { display: none; }
+
+/* Controls bar at the bottom of the launcher */
+.launcher-controls {
+  flex-shrink: 0;
+  height: 48px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.launcher-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.launcher-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.launcher-btn {
+  width: 36px; height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+.launcher-btn svg { width: 15px; height: 15px; }
+
+/* ── Upload section ──────────────────────────────────────────────────────── */
+.upload-content {
+  flex: 1;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  outline: none;
+}
+.upload-zone:focus,
+.upload-zone:hover { border-color: var(--accent); }
+
+.upload-zone.drag-over {
+  border-color: var(--accent-h);
+  background: rgba(124,92,252,.06);
+}
+
+.upload-zone-inner {
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  pointer-events: none; /* clicks handled by parent */
+}
+.upload-zone-inner .btn { pointer-events: auto; }
+
+.upload-icon {
+  width: 40px; height: 40px;
+  color: var(--accent);
+  stroke-width: 1.5;
+}
+
+.upload-title { font-size: 15px; font-weight: 600; }
+.upload-sub   { font-size: 12px; color: var(--text-dim); }
+
+/* ── Upload queue list ────────────────────────────────────────────────────── */
+.upload-queue {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upload-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.upload-item-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.upload-item-size { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
+
+.upload-item-status {
+  font-size: 11px; font-weight: 600; flex-shrink: 0;
+  padding: 2px 8px; border-radius: 4px;
+}
+.upload-item-status.pending { background: rgba(124,92,252,.15); color: var(--accent-h); }
+.upload-item-status.ok      { background: rgba(62,207,142,.15);  color: var(--success);  }
+.upload-item-status.error   { background: rgba(224,82,96,.15);   color: var(--danger);   }
+
+/* ── Format reference ────────────────────────────────────────────────────── */
+.upload-formats {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.upload-formats h3 { font-size: 13px; font-weight: 600; }
+
+.format-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.format-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.format-ext {
+  font-family: monospace;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(124,92,252,.15);
+  color: var(--accent-h);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.format-desc { color: var(--text-dim); }
+
+.format-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
 
 /* ── About view ──────────────────────────────────────────────────────────── */
 .about-content {
@@ -267,6 +589,7 @@ select:focus { border-color: var(--accent); }
 .modal-icon { font-size: 40px; }
 .modal-card h2 { font-size: 18px; font-weight: 700; }
 .modal-card p  { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+.modal-card a  { color: var(--accent-h); }
 .modal-table-name { color: var(--accent); font-weight: 600; font-size: 14px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
 
@@ -286,11 +609,30 @@ select:focus { border-color: var(--accent); }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
+  /* Sidebar (legacy layout) */
   :root { --sidebar-w: 56px; }
   .logo-text, .nav-item span, .sidebar-nav .nav-item { font-size: 0; }
   .nav-item { justify-content: center; padding: 10px; }
   .nav-item svg { width: 20px; height: 20px; }
   .sidebar-download { display: none; }
-  .view-header { padding: 12px; }
-  .table-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 12px; }
+
+  /* SPA top nav on small screens */
+  .top-nav { padding: 0 12px; gap: 8px; }
+  .logo-text { display: none; }
+  .nav-tab   { padding: 6px 8px; font-size: 12px; gap: 4px; }
+
+  /* Grids */
+  .section-header,
+  .view-header { padding: 12px; top: 52px; }
+  .table-grid  { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 12px; }
+  .upload-content { padding: 16px 12px; }
+  .upload-zone-inner { padding: 28px 16px; }
+
+  /* Launcher controls */
+  .launcher-title { display: none; }
+}
+
+@media (max-width: 400px) {
+  .nav-tab span { display: none; }
+  .nav-tab      { padding: 6px; }
 }

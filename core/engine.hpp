@@ -23,7 +23,8 @@ enum class RendererType {
     Vulkan,
     OpenGL,
     DirectX12,
-    Metal
+    Metal,
+    WebGL,
 };
 
 class Engine {
@@ -62,6 +63,10 @@ public:
     void resume();
     void stop();
     bool isRunning() const { return running_; }
+
+    // Single-frame tick — used by the Emscripten main loop so the blocking
+    // run() loop is never entered in the WASM build.
+    void tick(float deltaTime) { update(deltaTime); }
 
     // Subsystem access
     PhysicsWorld* getPhysicsWorld() { return physicsWorld_.get(); }

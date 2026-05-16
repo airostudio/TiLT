@@ -7,10 +7,15 @@
 #include "emulation/rom_emulator.hpp"
 #include "physics/world.hpp"
 #include "rendering/renderer.hpp"
-#include "rendering/vulkan/vulkan_renderer.hpp"
-#include "rendering/opengl/opengl_renderer.hpp"
 #include "audio/audio_engine.hpp"
 #include "scripting/script_engine.hpp"
+
+#ifdef __EMSCRIPTEN__
+#  include "rendering/webgl/webgl_renderer.hpp"
+#else
+#  include "rendering/vulkan/vulkan_renderer.hpp"
+#  include "rendering/opengl/opengl_renderer.hpp"
+#endif
 
 #include <iostream>
 #include <chrono>
@@ -97,10 +102,17 @@ void Engine::setRenderer(const std::string& rendererName) {
         setRenderer(RendererType::DirectX12);
     } else if (rendererName == "metal") {
         setRenderer(RendererType::Metal);
+    } else if (rendererName == "webgl") {
+        setRenderer(RendererType::WebGL);
     } else {
         std::cerr << "[Engine] Unknown renderer: " << rendererName << std::endl;
+#ifdef __EMSCRIPTEN__
+        std::cout << "[Engine] Falling back to WebGL" << std::endl;
+        setRenderer(RendererType::WebGL);
+#else
         std::cout << "[Engine] Falling back to Vulkan" << std::endl;
         setRenderer(RendererType::Vulkan);
+#endif
     }
 }
 
@@ -109,6 +121,23 @@ void Engine::setRenderer(RendererType type) {
 
     // Create appropriate renderer
     switch (type) {
+#ifdef __EMSCRIPTEN__
+        case RendererType::WebGL:
+        // All renderer types in the WASM build use the WebGL backend.
+        case RendererType::Vulkan:
+        case RendererType::OpenGL:
+        case RendererType::DirectX12:
+        case RendererType::Metal:
+        default:
+            std::cout << "[Engine] Creating WebGL renderer" << std::endl;
+            renderer_ = std::make_unique<WebGLRenderer>();
+            break;
+#else
+        case RendererType::WebGL:
+            std::cerr << "[Engine] WebGL renderer only available in WASM builds" << std::endl;
+            std::cout << "[Engine] Falling back to Vulkan" << std::endl;
+            renderer_ = std::make_unique<VulkanRenderer>();
+            break;
         case RendererType::Vulkan:
             std::cout << "[Engine] Creating Vulkan renderer" << std::endl;
             renderer_ = std::make_unique<VulkanRenderer>();
@@ -127,6 +156,7 @@ void Engine::setRenderer(RendererType type) {
             std::cout << "[Engine] Falling back to OpenGL" << std::endl;
             renderer_ = std::make_unique<OpenGLRenderer>();
             break;
+#endif
     }
 }
 

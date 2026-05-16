@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<!--
+  TiLT Emscripten Shell Template
+  ================================
+  Emscripten replaces {{{ SCRIPT }}} with the generated loader JS at build
+  time.  Everything else is static HTML/CSS that runs before the WASM lands.
+
+  This file is NOT the public-facing SPA — that lives in index.html.
+  The shell is compiled into the tilt.js bundle so Emscripten can manage
+  the canvas lifecycle directly.  Users reach the game via index.html which
+  dynamically injects tilt.js only when they click Play.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TiLT — Pinball Engine</title>
+  <style>
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0a0f;
+      --surface:  #12121a;
+      --border:   #2a2a40;
+      --accent:   #7c5cfc;
+      --accent-h: #9b7dff;
+      --text:     #e8e8f0;
+      --text-dim: #7878a0;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Canvas container ────────────────────────────────────────────────── */
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+
+    #canvas {
+      display: block;
+      /* Emscripten will set width/height attributes; CSS constrains to
+         viewport so it never overflows. */
+      max-width: 100vw;
+      max-height: 100vh;
+      /* Preserve sharp pixel rendering for DMD overlays and pixel art. */
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    /* ── Loading overlay ─────────────────────────────────────────────────── */
+    #loading {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      background: var(--bg);
+      transition: opacity 0.4s ease;
+    }
+    #loading.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .loading-logo-mark {
+      width: 72px;
+      height: 72px;
+      background: var(--accent);
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 40px;
+      font-weight: 900;
+      color: #fff;
+      /* Subtle pulse while loading */
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(124,92,252,0.4); }
+      50%       { box-shadow: 0 0 0 16px rgba(124,92,252,0); }
+    }
+    .loading-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .loading-subtitle {
+      font-size: 13px;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* ── Progress bar ────────────────────────────────────────────────────── */
+    .progress-wrap {
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-h));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    #loading-status {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: center;
+      min-height: 18px;
+      transition: opacity 0.2s;
+    }
+
+    /* ── Error state ─────────────────────────────────────────────────────── */
+    #error-panel {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(6px);
+    }
+    #error-panel.visible {
+      display: flex;
+    }
+    .error-card {
+      background: var(--surface);
+      border: 1px solid #e05260;
+      border-radius: 12px;
+      padding: 32px 36px;
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .error-icon { font-size: 40px; }
+    .error-card h2 { font-size: 18px; font-weight: 700; color: #e05260; }
+    .error-card p  { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+    #error-detail  { font-family: monospace; font-size: 11px; color: #e05260;
+                     background: #1a0a0d; padding: 8px 12px; border-radius: 6px;
+                     text-align: left; white-space: pre-wrap; max-height: 120px;
+                     overflow-y: auto; }
+    .error-reload {
+      margin-top: 8px;
+      padding: 9px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s;
+      align-self: center;
+    }
+    .error-reload:hover { filter: brightness(1.2); }
+
+    /* ── Output console (hidden by default, shown on Module.print) ───────── */
+    #output {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- WebGL canvas -->
+  <div id="canvas-container">
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
+
+  <!-- Loading overlay — hidden once the engine is ready -->
+  <div id="loading">
+    <div class="loading-logo">
+      <div class="loading-logo-mark">T</div>
+      <div class="loading-title">TiLT</div>
+      <div class="loading-subtitle">Totally Integrated Luxurious Tables</div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <div id="loading-status">Downloading engine&hellip;</div>
+    </div>
+  </div>
+
+  <!-- Error panel — shown if the WASM fails to start -->
+  <div id="error-panel">
+    <div class="error-card">
+      <div class="error-icon">⚠️</div>
+      <h2>Engine failed to start</h2>
+      <p>TiLT could not initialise the WebAssembly engine. This usually means
+         your browser does not support WebGL 2 or SharedArrayBuffer.</p>
+      <pre id="error-detail"></pre>
+      <button class="error-reload" onclick="location.reload()">Reload page</button>
+    </div>
+  </div>
+
+  <!-- Hidden textarea that Emscripten uses for stdout output -->
+  <textarea id="output"></textarea>
+
+  <script>
+    'use strict';
+
+    // ── Loading UI helpers ──────────────────────────────────────────────────
+    const loadingEl   = document.getElementById('loading');
+    const progressFil = document.getElementById('progress-fill');
+    const statusEl    = document.getElementById('loading-status');
+    const errorPanel  = document.getElementById('error-panel');
+    const errorDetail = document.getElementById('error-detail');
+
+    // Map Emscripten status strings to progress percentages.
+    const STATUS_PROGRESS = {
+      'Downloading data...'    : 10,
+      'Preparing...'           : 60,
+      'Compiling...'           : 75,
+      'Running...'             : 90,
+    };
+
+    function setProgress(pct, text) {
+      progressFil.style.width = Math.min(100, pct) + '%';
+      if (text) statusEl.textContent = text;
+    }
+
+    function showError(msg) {
+      errorDetail.textContent = msg || 'Unknown error';
+      errorPanel.classList.add('visible');
+      loadingEl.classList.add('fade-out');
+    }
+
+    function hideLoading() {
+      setProgress(100, 'Ready');
+      setTimeout(() => loadingEl.classList.add('fade-out'), 400);
+    }
+
+    // ── Emscripten Module configuration ────────────────────────────────────
+    // This object is read by the generated loader injected below.
+    var Module = {
+      // Point Emscripten at our canvas.
+      canvas: (function() { return document.getElementById('canvas'); })(),
+
+      // Status callback — called throughout the download/compile pipeline.
+      setStatus: function(text) {
+        if (!text) return;
+        const pct = STATUS_PROGRESS[text];
+        if (pct !== undefined) {
+          setProgress(pct, text);
+        } else if (text.includes('Downloading') || text.includes('data:')) {
+          // "Downloading data... (x/y)" — parse bytes for fine-grained progress.
+          const m = text.match(/\((\d+)\/(\d+)\)/);
+          if (m) {
+            const frac = parseInt(m[1], 10) / parseInt(m[2], 10);
+            setProgress(10 + frac * 45, 'Downloading engine… ' +
+              Math.round(frac * 100) + '%');
+          } else {
+            setProgress(15, 'Downloading engine…');
+          }
+        } else {
+          setProgress(80, text);
+        }
+      },
+
+      // Called once the WASM runtime is fully initialised and main() has run.
+      onRuntimeInitialized: function() {
+        console.log('[TiLT] WASM runtime initialised');
+        setProgress(95, 'Initialising WebGL…');
+        // Small delay so the browser can paint the 95% bar before we hide.
+        setTimeout(hideLoading, 300);
+      },
+
+      // Capture stdout from C++ (std::cout) and send to the browser console.
+      print: function(text) {
+        console.log('[TiLT]', text);
+      },
+
+      // Capture stderr (std::cerr) and send to browser console as warnings.
+      printErr: function(text) {
+        console.warn('[TiLT ERR]', text);
+      },
+
+      // Emscripten calls this on unrecoverable errors.
+      onAbort: function(what) {
+        console.error('[TiLT] Abort:', what);
+        showError(what);
+      },
+
+      // Total memory configured in CMakeLists.txt (-sINITIAL_MEMORY=134217728).
+      // Declaring it here so the module can see it before the WASM is fetched.
+      INITIAL_MEMORY: 134217728,
+    };
+
+    // Catch synchronous errors thrown during module boot.
+    window.addEventListener('error', function(e) {
+      if (e.message && e.message.includes('WebAssembly')) {
+        showError(e.message);
+      }
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      if (e.reason && String(e.reason).includes('WebAssembly')) {
+        showError(String(e.reason));
+      }
+    });
+
+    // Initial status.
+    setProgress(5, 'Downloading engine…');
+  </script>
+
+  {{{ SCRIPT }}}
+
+</body>
+</html>

@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="TiLT — Totally Integrated Luxurious Tables. The next-generation unified pinball emulator combining PinMAME, VPX, B2S, and PinUP Popper." />
+  <meta name="description" content="TiLT — Totally Integrated Luxurious Tables. Play classic pinball machines in your browser. Powered by WebAssembly." />
   <title>TiLT — Totally Integrated Luxurious Tables</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
+
+  <!-- ── Top navigation bar ─────────────────────────────────────────────── -->
+  <header class="top-nav" id="top-nav">
+    <div class="nav-brand">
       <div class="logo-mark">T</div>
       <div class="logo-text">
         <span class="logo-title">TiLT</span>
@@ -18,37 +19,39 @@
       </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <button class="nav-item active" data-view="tables">
-        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-        Tables
+    <nav class="nav-links" role="navigation" aria-label="Main navigation">
+      <button class="nav-tab active" data-section="library" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+        Library
       </button>
-      <button class="nav-item" data-view="about">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        About
+      <button class="nav-tab" data-section="upload" aria-current="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+        Upload
       </button>
-    </nav>
-
-    <div class="sidebar-download">
-      <a href="#download" class="btn btn-primary btn-download">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download
+      <a class="nav-tab nav-external"
+         href="https://github.com/yourusername/tilt"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="GitHub repository (opens in new tab)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 00-3.16 19.5c.5.08.66-.22.66-.48v-1.7C6.73 19.91 6.14 18 6.14 18A2.69 2.69 0 004.46 16.5c-1.27-.86.1-.85.1-.85a2.14 2.14 0 011.56 1.05 2.17 2.17 0 002.97.85 2.16 2.16 0 01.64-1.36c-2.24-.26-4.6-1.12-4.6-5a3.89 3.89 0 011.04-2.7 3.6 3.6 0 01.1-2.66s.84-.27 2.75 1.02a9.58 9.58 0 015 0c1.91-1.29 2.75-1.02 2.75-1.02a3.6 3.6 0 01.1 2.66 3.89 3.89 0 011.04 2.7c0 3.89-2.37 4.74-4.62 4.99a2.43 2.43 0 01.69 1.88v2.8c0 .27.16.58.67.48A10 10 0 0012 2z" fill="currentColor" stroke="none"/></svg>
+        GitHub
       </a>
-    </div>
-  </aside>
+    </nav>
+  </header>
 
-  <!-- Main content -->
-  <main class="main">
+  <!-- ── Main page body ─────────────────────────────────────────────────── -->
+  <main class="spa-main" id="spa-main">
 
-    <!-- Tables view -->
-    <section class="view active" id="view-tables">
-      <header class="view-header">
+    <!-- ── SECTION: Library ─────────────────────────────────────────────── -->
+    <section class="spa-section active" id="section-library" aria-label="Table library">
+
+      <!-- Sub-header: search + filter -->
+      <header class="section-header">
         <div class="search-wrap">
-          <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input id="searchInput" type="search" placeholder="Search tables…" autocomplete="off" />
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="searchInput" type="search" placeholder="Search tables…" autocomplete="off" aria-label="Search tables" />
         </div>
         <div class="header-actions">
-          <select id="filterManufacturer" title="Manufacturer">
+          <select id="filterManufacturer" title="Filter by manufacturer" aria-label="Filter by manufacturer">
             <option value="">All manufacturers</option>
             <option value="Williams">Williams</option>
             <option value="Bally">Bally</option>
@@ -58,75 +61,140 @@
         </div>
       </header>
 
-      <div class="table-stats" id="tableStats">Showing 12 classic tables</div>
-      <div id="tableGrid" class="table-grid"></div>
+      <!-- "Featured" demo tables (no file required) -->
+      <div class="section-label">Featured tables</div>
+      <div class="table-stats" id="tableStats">12 classic tables — demo data</div>
+      <div id="tableGrid" class="table-grid" role="list"></div>
+
+      <!-- Uploaded tables (from IndexedDB) -->
+      <div class="section-label" id="userTablesLabel" style="display:none">Your tables</div>
+      <div id="userGrid" class="table-grid" role="list"></div>
+
     </section>
 
-    <!-- About view -->
-    <section class="view" id="view-about">
-      <div class="about-content">
-        <div class="about-hero">
-          <div class="about-logo-mark">T</div>
-          <h1>TiLT</h1>
-          <p class="about-tagline">Totally Integrated Luxurious Tables</p>
-        </div>
+    <!-- ── SECTION: Upload ──────────────────────────────────────────────── -->
+    <section class="spa-section" id="section-upload" aria-label="Upload tables">
+      <header class="section-header" style="border-bottom:none; padding-bottom:0">
+        <h2 style="font-size:17px; font-weight:700">Upload Tables</h2>
+      </header>
 
-        <div class="about-description">
-          <p>TiLT is the next-generation unified pinball emulator, combining the best of PinMAME, Visual Pinball X, B2S Server, and PinUP Popper into a single, cohesive experience.</p>
-        </div>
-
-        <div class="about-features">
-          <div class="feature-card">
-            <div class="feature-icon">🎰</div>
-            <h3>770+ Machines</h3>
-            <p>Full PinMAME ROM library support with accurate hardware emulation.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🎨</div>
-            <h3>Modern Rendering</h3>
-            <p>OpenGL 4.6, Vulkan, DirectX 12, and Metal backends.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">🔊</div>
-            <h3>3D Audio</h3>
-            <p>OpenAL spatial audio with Doppler effects and multi-format support.</p>
-          </div>
-          <div class="feature-card">
-            <div class="feature-icon">📦</div>
-            <h3>One-click Import</h3>
-            <p>Import ZIP, RAR, and 7z table packages automatically.</p>
+      <div class="upload-content">
+        <!-- Drop zone -->
+        <div class="upload-zone" id="uploadZone"
+             role="button" tabindex="0"
+             aria-label="Drop table files here or click to browse"
+             aria-describedby="upload-hint">
+          <div class="upload-zone-inner">
+            <svg class="upload-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <polyline points="16 16 12 12 8 16"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
+            </svg>
+            <p class="upload-title">Drop table files here</p>
+            <p class="upload-sub" id="upload-hint">Supports .vpx, .fpt, and ROM .zip files</p>
+            <button class="btn btn-primary" id="uploadPickBtn">Browse files&hellip;</button>
+            <input type="file" id="fileInput" multiple
+                   accept=".vpx,.fpt,.zip,.vpt"
+                   style="display:none" aria-hidden="true" />
           </div>
         </div>
 
-        <div class="about-download" id="download">
-          <h2>Download TiLT</h2>
-          <p>The desktop app is required to play tables.</p>
-          <div class="download-buttons">
-            <button class="btn btn-primary btn-lg" onclick="alert('Releases coming soon — star us on GitHub to be notified!')">
-              <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 00-3.16 19.5c.5.08.66-.22.66-.48v-1.7C6.73 19.91 6.14 18 6.14 18A2.69 2.69 0 004.46 16.5c-1.27-.86.1-.85.1-.85a2.14 2.14 0 011.56 1.05 2.17 2.17 0 002.97.85 2.16 2.16 0 01.64-1.36c-2.24-.26-4.6-1.12-4.6-5a3.89 3.89 0 011.04-2.7 3.6 3.6 0 01.1-2.66s.84-.27 2.75 1.02a9.58 9.58 0 015 0C15.21 5.82 16.05 6.09 16.05 6.09a3.6 3.6 0 01.1 2.66 3.89 3.89 0 011.04 2.7c0 3.89-2.37 4.74-4.62 4.99a2.43 2.43 0 01.69 1.88v2.8c0 .27.16.58.67.48A10 10 0 0012 2z" fill="currentColor" stroke="none"/></svg>
-              GitHub Releases
-            </button>
-            <button class="btn btn-secondary btn-lg" onclick="alert('Releases coming soon!')">
-              <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-              Windows / Linux / macOS
-            </button>
+        <!-- Upload progress list -->
+        <ul class="upload-queue" id="uploadQueue" aria-label="Upload progress" aria-live="polite"></ul>
+
+        <!-- File format reference -->
+        <div class="upload-formats">
+          <h3>Supported formats</h3>
+          <div class="format-grid">
+            <div class="format-item">
+              <span class="format-ext">.vpx</span>
+              <span class="format-desc">Visual Pinball X table</span>
+            </div>
+            <div class="format-item">
+              <span class="format-ext">.fpt</span>
+              <span class="format-desc">Future Pinball table</span>
+            </div>
+            <div class="format-item">
+              <span class="format-ext">.vpt</span>
+              <span class="format-desc">Visual Pinball (legacy)</span>
+            </div>
+            <div class="format-item">
+              <span class="format-ext">.zip</span>
+              <span class="format-desc">ROM archive</span>
+            </div>
           </div>
+          <p class="format-note">Files are stored locally in your browser's IndexedDB — nothing is uploaded to a server.</p>
         </div>
       </div>
     </section>
+
   </main>
 
-  <!-- Download modal -->
-  <div id="downloadModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-backdrop" id="modalBackdrop"></div>
+  <!-- ── LAUNCHER overlay (shown when a table is playing) ─────────────── -->
+  <div class="launcher-overlay hidden" id="launcher" role="dialog" aria-modal="true" aria-label="Pinball game">
+    <!-- Canvas container — the WebGL canvas lives here while a game is running -->
+    <div class="canvas-container" id="canvasContainer">
+      <!-- Emscripten writes to #canvas.  We create it here so it exists in
+           the DOM before tilt.js loads. -->
+      <canvas id="canvas" oncontextmenu="event.preventDefault()" aria-label="Pinball game canvas"></canvas>
+
+      <!-- Engine loading overlay (shown until WASM is ready) -->
+      <div class="loading-overlay" id="engineLoading">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text" id="engineStatus">Downloading engine&hellip;</div>
+        <div class="loading-progress-track">
+          <div class="loading-progress-fill" id="engineProgressFill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Launcher controls bar -->
+    <div class="launcher-controls" id="launcherControls">
+      <div class="launcher-title" id="launcherTitle">Playing&hellip;</div>
+      <div class="launcher-actions">
+        <button class="btn btn-secondary launcher-btn" id="btnAudio"
+                title="Toggle audio" aria-label="Toggle audio" aria-pressed="true">
+          <svg id="audioIcon" viewBox="0 0 24 24" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+            <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/>
+          </svg>
+        </button>
+        <button class="btn btn-secondary launcher-btn" id="btnFullscreen"
+                title="Toggle fullscreen" aria-label="Toggle fullscreen">
+          <svg id="fullscreenIcon" viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="15 3 21 3 21 9"/>
+            <polyline points="9 21 3 21 3 15"/>
+            <line x1="21" y1="3" x2="14" y2="10"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
+        <button class="btn btn-secondary launcher-btn" id="btnBack"
+                title="Back to library" aria-label="Back to library">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12"/>
+            <polyline points="12 19 5 12 12 5"/>
+          </svg>
+          Library
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Download / "coming soon" modal (for featured demo tables) ─────── -->
+  <div id="comingSoonModal" class="modal hidden"
+       role="dialog" aria-modal="true" aria-labelledby="csmTitle">
+    <div class="modal-backdrop" id="csmBackdrop"></div>
     <div class="modal-card">
-      <div class="modal-icon">🖥️</div>
-      <h2 id="modalTitle">Desktop app required</h2>
-      <p>Playing tables requires the TiLT desktop app, which runs the pinball engine locally on your machine.</p>
-      <p class="modal-table-name" id="modalTableName"></p>
+      <div class="modal-icon">🎰</div>
+      <h2 id="csmTitle">Coming soon on the web</h2>
+      <p>Web playback for <strong id="csmTableName"></strong> is in progress.</p>
+      <p>To play now, <a href="https://github.com/yourusername/tilt/releases" target="_blank" rel="noopener noreferrer">download the desktop app</a> and load the table file directly.</p>
+      <p style="font-size:11px;color:var(--text-dim);margin-top:4px">
+        Or upload your own .vpx / .fpt file using the Upload tab — user-supplied tables <em>do</em> run in the browser.
+      </p>
       <div class="modal-actions">
-        <a href="#download" class="btn btn-primary" id="modalDownloadBtn">Download TiLT</a>
-        <button class="btn btn-secondary" id="modalCloseBtn">Close</button>
+        <button class="btn btn-primary" id="csmUploadBtn">Upload a table</button>
+        <button class="btn btn-secondary" id="csmCloseBtn">Close</button>
       </div>
     </div>
   </div>
