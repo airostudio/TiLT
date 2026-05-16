@@ -191,8 +191,7 @@ if(EMSCRIPTEN)
         -sFULL_ES3=1
         # GLFW shim (keyboard/mouse/window events)
         -sUSE_GLFW=3
-        # OpenAL via WebAudio
-        -sUSE_OPENAL=1
+        # OpenAL via WebAudio (auto-linked when AL/al.h is included; no setting)
         # Memory
         -sALLOW_MEMORY_GROWTH=1
         -sINITIAL_MEMORY=134217728   # 128 MiB

@@ -12,10 +12,10 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
-// Use the real OpenAL ALC types — forward-declaring the structs directly
-// avoids pulling in all of <AL/alc.h> into every translation unit.
-struct ALCdevice;
-struct ALCcontext;
+// Use the real OpenAL ALC types. We include the header rather than forward-
+// declaring because different OpenAL implementations (system OpenAL 1.23 vs
+// Emscripten's OpenAL port) disagree on the underlying struct tag name.
+#include <AL/alc.h>
 
 namespace tilt {
 

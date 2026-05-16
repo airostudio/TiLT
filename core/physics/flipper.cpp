@@ -3,6 +3,7 @@
  */
 
 #include "flipper.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace tilt {
