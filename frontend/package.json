@@ -1,0 +1,47 @@
+{
+  "name": "tilt-launcher",
+  "version": "1.0.0",
+  "description": "TiLT — Totally Integrated Luxurious Tables launcher",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --dir",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.airostudio.tilt",
+    "productName": "TiLT",
+    "directories": {
+      "output": "../dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/tilt",
+        "to": "bin/tilt"
+      }
+    ],
+    "linux": {
+      "target": "AppImage",
+      "category": "Game"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.games"
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}

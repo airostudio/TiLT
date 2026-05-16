@@ -34,18 +34,24 @@ void printUsage(const char* progName) {
     std::cout << "  --vr                 Enable VR mode" << std::endl;
     std::cout << "  --renderer <name>    Specify renderer (dx12, vulkan, opengl, metal)" << std::endl;
     std::cout << "  --config <file>      Load configuration file" << std::endl;
+    std::cout << "  --ipc                JSON-over-stdio IPC mode (used by Electron launcher)" << std::endl;
     std::cout << "\nExamples:" << std::endl;
     std::cout << "  " << progName << " -f                    # Launch frontend" << std::endl;
     std::cout << "  " << progName << " -t table.vpx -r tz_94h  # Run specific table with ROM" << std::endl;
     std::cout << "  " << progName << " --vr -t table.vpx     # Run in VR mode" << std::endl;
 }
 
-int main(int argc, char* argv[]) {
-    printBanner();
+// Emit a single-line JSON message to stdout for the Electron parent process.
+static void ipcSend(const std::string& json) {
+    std::cout << json << "\n";
+    std::cout.flush();
+}
 
+int main(int argc, char* argv[]) {
     // Parse command line arguments
     bool launchFrontend = false;
     bool vrMode = false;
+    bool ipcMode = false;
     std::string tableFile;
     std::string romName;
     std::string renderer = "vulkan"; // Default renderer
@@ -67,6 +73,9 @@ int main(int argc, char* argv[]) {
         }
         else if (arg == "--vr") {
             vrMode = true;
+        }
+        else if (arg == "--ipc") {
+            ipcMode = true;
         }
         else if (arg == "-t" || arg == "--table") {
             if (i + 1 < argc) {
@@ -90,57 +99,78 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // In IPC mode suppress the banner so only JSON goes to stdout.
+    if (!ipcMode) {
+        printBanner();
+    }
+
     try {
-        // Initialize the core engine
-        std::cout << "Initializing TiLT engine..." << std::endl;
+        if (ipcMode) {
+            ipcSend(R"({"status":"init","message":"Initializing TiLT engine"})");
+        } else {
+            std::cout << "Initializing TiLT engine..." << std::endl;
+        }
+
         auto engine = std::make_unique<tilt::Engine>();
 
-        // Load configuration
         if (!configFile.empty()) {
             engine->loadConfig(configFile);
         } else {
             engine->loadDefaultConfig();
         }
 
-        // Set renderer
         engine->setRenderer(renderer);
 
-        // Enable VR if requested
         if (vrMode) {
-            std::cout << "Enabling VR mode..." << std::endl;
+            if (!ipcMode) std::cout << "Enabling VR mode..." << std::endl;
             engine->enableVR();
         }
 
-        if (launchFrontend) {
-            // Launch the frontend
-            std::cout << "Launching frontend..." << std::endl;
-            auto launcher = std::make_unique<tilt::Launcher>(engine.get());
-            launcher->run();
-        }
-        else if (!tableFile.empty()) {
-            // Load and run specific table
-            std::cout << "Loading table: " << tableFile << std::endl;
+        if (!tableFile.empty()) {
+            if (ipcMode) {
+                ipcSend(R"({"status":"loading","message":"Loading table"})");
+            } else {
+                std::cout << "Loading table: " << tableFile << std::endl;
+            }
 
             if (!romName.empty()) {
-                std::cout << "Loading ROM: " << romName << std::endl;
+                if (!ipcMode) std::cout << "Loading ROM: " << romName << std::endl;
                 engine->loadROM(romName);
             }
 
             engine->loadTable(tableFile);
+
+            // Signal to Electron that the engine is ready (table window is up).
+            if (ipcMode) {
+                ipcSend(R"({"status":"ready","message":"Engine running"})");
+            }
+
             engine->run();
+
+            if (ipcMode) {
+                ipcSend(R"({"status":"stopped","message":"Table exited"})");
+            }
         }
-        else {
-            // Default: launch frontend
+        else if (launchFrontend) {
+            if (!ipcMode) std::cout << "Launching frontend..." << std::endl;
+            auto launcher = std::make_unique<tilt::Launcher>(engine.get());
+            launcher->run();
+        }
+        else if (!ipcMode) {
             std::cout << "No options specified. Launching frontend..." << std::endl;
             auto launcher = std::make_unique<tilt::Launcher>(engine.get());
             launcher->run();
         }
 
-        std::cout << "Shutting down..." << std::endl;
+        if (!ipcMode) std::cout << "Shutting down..." << std::endl;
         return 0;
     }
     catch (const std::exception& e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
+        if (ipcMode) {
+            ipcSend(std::string(R"({"status":"error","message":")") + e.what() + "\"}");
+        } else {
+            std::cerr << "Fatal error: " << e.what() << std::endl;
+        }
         return 1;
     }
 }

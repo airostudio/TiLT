@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: file:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TiLT — Totally Integrated Luxurious Tables</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">T</div>
+      <div class="logo-text">
+        <span class="logo-title">TiLT</span>
+        <span class="logo-sub">v1.0.0</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="tables">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Tables
+      </button>
+      <button class="nav-item" data-view="import">
+        <svg viewBox="0 0 24 24"><path d="M12 4v16m-8-8h16"/></svg>
+        Import
+      </button>
+      <button class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+
+    <div class="sidebar-engine">
+      <div class="engine-indicator" id="engineIndicator">
+        <span class="indicator-dot"></span>
+        <span class="indicator-label">Engine offline</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- Tables view -->
+    <section class="view active" id="view-tables">
+      <header class="view-header">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="searchInput" type="search" placeholder="Search tables…" autocomplete="off" />
+        </div>
+        <div class="header-actions">
+          <select id="filterRenderer" title="Renderer">
+            <option value="opengl">OpenGL</option>
+            <option value="vulkan">Vulkan</option>
+            <option value="dx12">DirectX 12</option>
+            <option value="metal">Metal</option>
+          </select>
+          <button id="btnAddFolder" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            Add folder
+          </button>
+          <button id="btnOpenFile" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Open file…
+          </button>
+        </div>
+      </header>
+
+      <div class="table-stats" id="tableStats">No tables — add a folder to get started.</div>
+
+      <div id="tableGrid" class="table-grid"></div>
+
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-icon">🎯</div>
+        <p>No tables found</p>
+        <p class="empty-sub">Add a folder containing .vpx or .fpt files</p>
+        <button class="btn btn-primary" id="btnAddFolderEmpty">Add folder</button>
+      </div>
+    </section>
+
+    <!-- Import view -->
+    <section class="view" id="view-import">
+      <header class="view-header">
+        <h2>Import</h2>
+      </header>
+      <div class="placeholder-view">
+        <div class="placeholder-icon">📦</div>
+        <p>Import is handled by the <code>tilt-import</code> CLI tool.</p>
+        <p class="placeholder-sub">Run <code>tilt-import --help</code> for usage, or use the import GUI.</p>
+      </div>
+    </section>
+
+    <!-- Settings view -->
+    <section class="view" id="view-settings">
+      <header class="view-header">
+        <h2>Settings</h2>
+      </header>
+      <form class="settings-form" id="settingsForm">
+        <fieldset>
+          <legend>Tables</legend>
+          <label>
+            Tables folder
+            <div class="path-input-wrap">
+              <input id="settingsTablesFolder" type="text" placeholder="/path/to/tables" readonly />
+              <button type="button" class="btn btn-secondary btn-sm" id="btnChooseTablesFolder">Browse…</button>
+            </div>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Rendering</legend>
+          <label>
+            Default renderer
+            <select id="settingsRenderer">
+              <option value="opengl">OpenGL 4.6</option>
+              <option value="vulkan">Vulkan</option>
+              <option value="dx12">DirectX 12</option>
+              <option value="metal">Metal</option>
+            </select>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="settingsVR" />
+            Enable VR mode
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Engine</legend>
+          <div class="engine-status-detail" id="engineStatusDetail">Checking…</div>
+        </fieldset>
+
+        <div class="settings-actions">
+          <button type="button" class="btn btn-primary" id="btnSaveSettings">Save</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Launch overlay -->
+  <div id="launchOverlay" class="launch-overlay hidden">
+    <div class="launch-card">
+      <div class="launch-spinner"></div>
+      <div class="launch-title" id="launchTitle">Launching…</div>
+      <div class="launch-log" id="launchLog"></div>
+      <button class="btn btn-danger" id="btnStopEngine">Stop</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
