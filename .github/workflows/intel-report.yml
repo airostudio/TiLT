@@ -1,0 +1,217 @@
+name: TiLT Intel Report
+
+on:
+  push:
+    branches:
+      - 'claude/test-workflow-intel-report-mVmBm'
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-report:
+    name: Build & Generate Intel Report
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libarchive-dev \
+            libglfw3-dev \
+            libopenal-dev \
+            libpugixml-dev \
+            libvulkan-dev \
+            cloc
+
+      - name: Setup vendor libraries
+        run: |
+          chmod +x scripts/setup_vendor_libs.sh
+          bash scripts/setup_vendor_libs.sh
+
+      - name: Configure (CMake)
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_FRONTEND=ON \
+            -DBUILD_INSTALLER=OFF \
+            -DENABLE_VULKAN=ON \
+            -DENABLE_OPENGL=ON \
+            -DBUILD_TESTS=OFF \
+            -DUSE_SYSTEM_LIBS=ON
+
+      - name: Build
+        id: build
+        run: |
+          set +e
+          cmake --build build --config Release -- -j$(nproc) 2>&1 | tee build/build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          echo "build_exit=$BUILD_EXIT" >> "$GITHUB_OUTPUT"
+          if [ $BUILD_EXIT -eq 0 ]; then
+            echo "build_status=SUCCESS" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_status=FAILED" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate Intel Report
+        env:
+          BUILD_STATUS: ${{ steps.build.outputs.build_status }}
+        run: |
+          REPORT_FILE="build/INTEL_REPORT.md"
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_SHORT="${COMMIT_SHA:0:8}"
+          BRANCH="${{ github.ref_name }}"
+          RUNNER_OS="${{ runner.os }}"
+
+          if [ "$BUILD_STATUS" = "SUCCESS" ]; then
+            BUILD_BADGE="✅ SUCCESS"
+          else
+            BUILD_BADGE="❌ FAILED"
+          fi
+
+          # Collect binary metrics if build succeeded
+          TILT_SIZE="N/A"
+          TILT_IMPORT_SIZE="N/A"
+          CORE_LIB_SIZE="N/A"
+          TOOLS_LIB_SIZE="N/A"
+          DISPLAY_LIB_SIZE="N/A"
+          FRONTEND_LIB_SIZE="N/A"
+
+          if [ "$BUILD_STATUS" = "SUCCESS" ]; then
+            [ -f build/tilt ]           && TILT_SIZE=$(du -sh build/tilt | cut -f1)
+            [ -f build/tilt-import ]    && TILT_IMPORT_SIZE=$(du -sh build/tilt-import | cut -f1)
+            [ -f build/core/libtilt_core.a ]       && CORE_LIB_SIZE=$(du -sh build/core/libtilt_core.a | cut -f1)
+            [ -f build/tools/libtilt_tools.a ]     && TOOLS_LIB_SIZE=$(du -sh build/tools/libtilt_tools.a | cut -f1)
+            [ -f build/display/libtilt_display.a ] && DISPLAY_LIB_SIZE=$(du -sh build/display/libtilt_display.a | cut -f1)
+            [ -f build/frontend/libtilt_frontend.a ] && FRONTEND_LIB_SIZE=$(du -sh build/frontend/libtilt_frontend.a | cut -f1)
+          fi
+
+          # Source code metrics
+          TOTAL_CPP=$(find core display frontend plugins tools -name "*.cpp" 2>/dev/null | wc -l)
+          TOTAL_HPP=$(find core display frontend plugins tools -name "*.hpp" -o -name "*.h" 2>/dev/null | wc -l)
+          TOTAL_FILES=$((TOTAL_CPP + TOTAL_HPP))
+
+          # LOC via cloc if available
+          CLOC_SUMMARY=""
+          if command -v cloc &>/dev/null; then
+            CLOC_SUMMARY=$(cloc --quiet --csv core display frontend plugins tools 2>/dev/null | grep -v "^language" | awk -F',' 'NR>1 && $1!="SUM" {printf "| %-20s | %6s | %6s | %6s |\n", $2, $3, $4, $5}')
+            CLOC_TOTAL=$(cloc --quiet core display frontend plugins tools 2>/dev/null | grep "SUM:" | awk '{printf "%s blank, %s comment, %s code", $3, $4, $5}')
+          fi
+
+          # Warnings in build log
+          WARN_COUNT=$(grep -c " warning:" build/build.log 2>/dev/null || echo 0)
+          ERROR_COUNT=$(grep -c " error:" build/build.log 2>/dev/null || echo 0)
+
+          cat > "$REPORT_FILE" << REPORT
+# TiLT Intelligence Report
+
+**Generated:** ${TIMESTAMP}
+**Commit:** \`${COMMIT_SHORT}\` on \`${BRANCH}\`
+**Runner:** ${RUNNER_OS} (ubuntu-latest)
+**Workflow Run:** [#${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+---
+
+## Executive Summary
+
+| Metric | Value |
+|--------|-------|
+| Build Status | ${BUILD_BADGE} |
+| Compiler Warnings | ${WARN_COUNT} |
+| Compiler Errors | ${ERROR_COUNT} |
+| Source Files | ${TOTAL_FILES} (${TOTAL_CPP} .cpp, ${TOTAL_HPP} .hpp/.h) |
+
+---
+
+## Build Artifacts
+
+| Target | Size |
+|--------|------|
+| \`tilt\` (main executable) | ${TILT_SIZE} |
+| \`tilt-import\` (import tool) | ${TILT_IMPORT_SIZE} |
+| \`libtilt_core.a\` | ${CORE_LIB_SIZE} |
+| \`libtilt_display.a\` | ${DISPLAY_LIB_SIZE} |
+| \`libtilt_frontend.a\` | ${FRONTEND_LIB_SIZE} |
+| \`libtilt_tools.a\` | ${TOOLS_LIB_SIZE} |
+
+---
+
+## Source Analysis
+
+| Module | Files |
+|--------|-------|
+| core/ | $(find core -name "*.cpp" -o -name "*.hpp" 2>/dev/null | wc -l) |
+| display/ | $(find display -name "*.cpp" -o -name "*.hpp" 2>/dev/null | wc -l) |
+| frontend/ | $(find frontend -name "*.cpp" -o -name "*.hpp" 2>/dev/null | wc -l) |
+| plugins/ | $(find plugins -name "*.cpp" -o -name "*.hpp" 2>/dev/null | wc -l) |
+| tools/ | $(find tools -name "*.cpp" -o -name "*.hpp" 2>/dev/null | wc -l) |
+| **Total** | **${TOTAL_FILES}** |
+
+REPORT
+
+          # Append cloc table if available
+          if [ -n "$CLOC_SUMMARY" ]; then
+            cat >> "$REPORT_FILE" << CLOC_SECTION
+
+### Lines of Code (cloc)
+
+| Language             | Blank  | Comment | Code   |
+|----------------------|--------|---------|--------|
+${CLOC_SUMMARY}
+
+**Total:** ${CLOC_TOTAL}
+
+CLOC_SECTION
+          fi
+
+          # Append build log tail
+          cat >> "$REPORT_FILE" << LOGSECTION
+
+---
+
+## Build Log (last 40 lines)
+
+\`\`\`
+$(tail -40 build/build.log)
+\`\`\`
+
+---
+
+*Report generated automatically by the TiLT Intel Report workflow.*
+LOGSECTION
+
+          echo "Intel report written to $REPORT_FILE"
+          cat "$REPORT_FILE"
+
+      - name: Upload Intel Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intel-report-${{ github.sha }}
+          path: build/INTEL_REPORT.md
+          retention-days: 30
+
+      - name: Upload Build Log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build-log-${{ github.sha }}
+          path: build/build.log
+          retention-days: 7
+
+      - name: Fail if build failed
+        if: steps.build.outputs.build_status == 'FAILED'
+        run: |
+          echo "Build failed — see Intel Report artifact for details."
+          exit 1
