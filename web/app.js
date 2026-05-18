@@ -80,6 +80,94 @@ const TableDB = (() => {
 })();
 
 // ============================================================================
+// Module: RepositoryBrowser  —  on-demand game download from Internet Archive
+// ============================================================================
+
+const RepositoryBrowser = (() => {
+  const IA_SEARCH = 'https://archive.org/advancedsearch.php';
+  const IA_META   = 'https://archive.org/metadata';
+  const IA_DL     = 'https://archive.org/download';
+
+  const GAME_EXTS = ['.vpx', '.vpt', '.fpt', '.zip', '.7z', '.rom'];
+
+  // Curated starting points — all freely distributable content.
+  const PRESETS = [
+    {
+      label: 'Epic Pinball',
+      id:    'epicpinballcompletecollection',
+      type:  'item',
+      desc:  '10 classic 80s tables — fully freeware',
+    },
+    {
+      label: 'Visual Pinball 2020',
+      id:    'Visual_Pinball_2020-06-20',
+      type:  'item',
+      desc:  'Community VPX collection (222 GB)',
+    },
+    {
+      label: 'FreeWPC ROMs',
+      id:    'freewpc',
+      type:  'search',
+      desc:  'GPL-licensed WPC machine ROMs',
+    },
+    {
+      label: 'Pinball on Archive',
+      id:    'pinball AND mediatype:software',
+      type:  'search',
+      desc:  'All pinball software on Archive.org',
+    },
+  ];
+
+  function _isGameFile(name) {
+    const lower = name.toLowerCase();
+    return GAME_EXTS.some(ext => lower.endsWith(ext));
+  }
+
+  async function search(query) {
+    const url = `${IA_SEARCH}?q=${encodeURIComponent(query)}`
+              + `&fl[]=identifier&fl[]=title&fl[]=description&fl[]=item_size`
+              + `&rows=24&output=json`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data.response?.docs ?? [];
+  }
+
+  async function listFiles(itemId) {
+    const res = await fetch(`${IA_META}/${encodeURIComponent(itemId)}/files`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return (data.result ?? [])
+      .filter(f => f.name && !f.name.startsWith('_') && _isGameFile(f.name))
+      .map(f => ({ name: f.name, size: parseInt(f.size ?? '0', 10) || 0 }));
+  }
+
+  async function downloadFile(itemId, filename, onProgress) {
+    const url = `${IA_DL}/${encodeURIComponent(itemId)}/${encodeURIComponent(filename)}`;
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const total  = parseInt(res.headers.get('content-length') ?? '0', 10);
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.byteLength;
+      onProgress?.(received, total);
+    }
+
+    const blob = new Blob(chunks);
+    return new File([blob], filename, { type: 'application/octet-stream' });
+  }
+
+  return { search, listFiles, downloadFile, PRESETS };
+})();
+
+// ============================================================================
 // Module: TableRegistry  —  server-driven game list fetched from tables.json
 // ============================================================================
 
@@ -661,10 +749,205 @@ const UI = (() => {
     if (target) target.classList.add('active');
   }
 
+  // ── Repository browser ─────────────────────────────────────────────────────
+
+  function renderRepoPresets(presets) {
+    const container = document.getElementById('repoPresets');
+    if (!container) return;
+    container.innerHTML = '';
+    presets.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'preset-btn';
+      btn.dataset.id   = p.id;
+      btn.dataset.type = p.type;
+      btn.innerHTML = `<span class="preset-label">${p.label}</span><span class="preset-desc">${p.desc}</span>`;
+      container.appendChild(btn);
+    });
+  }
+
+  function renderRepoResults(docs) {
+    const grid  = document.getElementById('repoGrid');
+    const stats = document.getElementById('repoStats');
+    const back  = document.getElementById('repoBackBtn');
+    if (!grid) return;
+
+    back?.classList.add('hidden');
+    if (stats) stats.textContent = `${docs.length} result${docs.length !== 1 ? 's' : ''} from Internet Archive`;
+
+    grid.innerHTML = '';
+    if (!docs.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);letter-spacing:0.1em">NO RESULTS</div>`;
+      return;
+    }
+
+    docs.forEach((doc, i) => {
+      const card = document.createElement('div');
+      card.className = 'table-card repo-result-card';
+      card.setAttribute('role', 'listitem');
+
+      const placeholder = _generatePlaceholder(doc.title || doc.identifier, i, 'pinball');
+
+      const thumb = document.createElement('div');
+      thumb.className = 'card-thumb';
+      const img = document.createElement('img');
+      img.src     = placeholder;
+      img.alt     = doc.title || doc.identifier;
+      img.loading = 'lazy';
+      thumb.appendChild(img);
+
+      const badge = document.createElement('span');
+      badge.className   = 'card-badge card-badge-repo';
+      badge.textContent = 'ARCHIVE';
+      thumb.appendChild(badge);
+
+      const body = document.createElement('div');
+      body.className = 'card-body';
+
+      const name = document.createElement('div');
+      name.className   = 'card-name';
+      name.textContent = doc.title || doc.identifier;
+
+      const desc = document.createElement('div');
+      desc.className   = 'card-meta repo-desc';
+      const raw = (doc.description || '').replace(/<[^>]+>/g, '');
+      desc.textContent = raw.length > 90 ? raw.slice(0, 87) + '…' : raw;
+
+      const size = document.createElement('div');
+      size.className   = 'card-meta';
+      size.textContent = doc.item_size ? formatBytes(doc.item_size) : '';
+
+      body.append(name, desc, size);
+
+      const actions = document.createElement('div');
+      actions.className = 'card-actions';
+
+      const browseBtn = document.createElement('button');
+      browseBtn.className   = 'btn btn-primary';
+      browseBtn.textContent = 'Browse Files';
+      browseBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        browseBtn.textContent = 'Loading…';
+        browseBtn.disabled    = true;
+        UI.loadRepoFiles(doc.identifier, doc.title || doc.identifier);
+      });
+
+      actions.appendChild(browseBtn);
+      card.append(thumb, body, actions);
+      grid.appendChild(card);
+    });
+  }
+
+  async function _loadRepoFiles(itemId, itemTitle) {
+    const grid  = document.getElementById('repoGrid');
+    const stats = document.getElementById('repoStats');
+    const back  = document.getElementById('repoBackBtn');
+    const presetsLabel = document.getElementById('repoPresetsLabel');
+    const presets      = document.getElementById('repoPresets');
+
+    if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">LOADING FILES…</div>`;
+    if (stats) stats.textContent = '';
+
+    try {
+      const files = await RepositoryBrowser.listFiles(itemId);
+
+      presetsLabel?.classList.add('hidden');
+      presets?.classList.add('hidden');
+      back?.classList.remove('hidden');
+      back._itemId    = itemId;
+      back._itemTitle = itemTitle;
+
+      if (stats) stats.textContent = `${files.length} game file${files.length !== 1 ? 's' : ''} in "${itemTitle}"`;
+
+      grid.innerHTML = '';
+      if (!files.length) {
+        grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--text-dim)">NO GAME FILES FOUND</div>`;
+        return;
+      }
+
+      files.forEach((f, i) => {
+        const row = document.createElement('div');
+        row.className = 'repo-file-row';
+        row.setAttribute('role', 'listitem');
+
+        const info = document.createElement('div');
+        info.className = 'repo-file-info';
+
+        const fname = document.createElement('span');
+        fname.className   = 'repo-file-name';
+        fname.textContent = f.name;
+
+        const fsize = document.createElement('span');
+        fsize.className   = 'repo-file-size';
+        fsize.textContent = f.size ? formatBytes(f.size) : '';
+
+        info.append(fname, fsize);
+
+        const progress = document.createElement('div');
+        progress.className = 'repo-file-progress hidden';
+        progress.innerHTML = `<div class="repo-progress-track"><div class="repo-progress-fill"></div></div><span class="repo-progress-text">0%</span>`;
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className   = 'btn btn-primary';
+        dlBtn.textContent = 'Download';
+        dlBtn.addEventListener('click', async () => {
+          dlBtn.disabled    = true;
+          dlBtn.textContent = 'Downloading…';
+          progress.classList.remove('hidden');
+
+          try {
+            const file = await RepositoryBrowser.downloadFile(itemId, f.name, (received, total) => {
+              const pct  = total ? Math.round(received * 100 / total) : 0;
+              const fill = progress.querySelector('.repo-progress-fill');
+              const text = progress.querySelector('.repo-progress-text');
+              if (fill) fill.style.width = pct + '%';
+              if (text) text.textContent = total
+                ? `${formatBytes(received)} / ${formatBytes(total)}`
+                : formatBytes(received);
+            });
+
+            await TableDB.saveTable(file);
+
+            dlBtn.textContent = '✓ Saved';
+            dlBtn.className   = 'btn btn-secondary';
+            progress.classList.add('hidden');
+
+            // Refresh user library so the download appears immediately
+            const updated = await TableDB.getTables();
+            UI.renderUserLibrary(updated);
+            state.userTables = updated;
+
+          } catch (err) {
+            console.error('[TiLT] Download failed:', err);
+            dlBtn.disabled    = false;
+            dlBtn.textContent = 'Retry';
+            progress.classList.add('hidden');
+            const text = progress.querySelector('.repo-progress-text');
+            if (text) text.textContent = '';
+
+            const errEl = document.createElement('span');
+            errEl.className   = 'repo-file-error';
+            errEl.textContent = err.message.includes('CORS') || err.message.includes('Failed to fetch')
+              ? 'CORS blocked — use Upload tab to add the file manually'
+              : `Error: ${err.message}`;
+            row.appendChild(errEl);
+          }
+        });
+
+        row.append(info, progress, dlBtn);
+        grid.appendChild(row);
+      });
+
+    } catch (err) {
+      if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
+    }
+  }
+
   return {
     showLauncher, hideLauncher,
     setEngineStatus, hideEngineLoading,
     renderLibrary, renderUserLibrary,
+    renderRepoPresets, renderRepoResults,
+    loadRepoFiles: _loadRepoFiles,
     activateSection,
   };
 })();
@@ -843,6 +1126,76 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('comingSoonModal')?.classList.add('hidden');
       document.body.style.overflow = '';
     }
+  });
+
+  // ── Repository browser ──────────────────────────────────────────────────────
+
+  UI.renderRepoPresets(RepositoryBrowser.PRESETS);
+
+  // Preset button clicks
+  document.getElementById('repoPresets')?.addEventListener('click', async e => {
+    const btn = e.target.closest('.preset-btn');
+    if (!btn) return;
+    const { id, type } = btn.dataset;
+    const label = btn.querySelector('.preset-label')?.textContent ?? id;
+
+    document.getElementById('repoPresetsLabel')?.classList.add('hidden');
+    document.getElementById('repoPresets')?.classList.add('hidden');
+
+    if (type === 'item') {
+      UI.loadRepoFiles(id, label);
+    } else {
+      const grid  = document.getElementById('repoGrid');
+      const stats = document.getElementById('repoStats');
+      if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">SEARCHING…</div>`;
+      if (stats) stats.textContent = '';
+      try {
+        const docs = await RepositoryBrowser.search(id);
+        UI.renderRepoResults(docs);
+      } catch (err) {
+        if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
+      }
+    }
+  });
+
+  // Search bar
+  const repoSearchInput = document.getElementById('repoSearchInput');
+  let repoSearchTimer;
+  repoSearchInput?.addEventListener('input', e => {
+    clearTimeout(repoSearchTimer);
+    const q = e.target.value.trim();
+    if (!q) {
+      document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
+      document.getElementById('repoPresets')?.classList.remove('hidden');
+      document.getElementById('repoBackBtn')?.classList.add('hidden');
+      document.getElementById('repoGrid').innerHTML = '';
+      document.getElementById('repoStats').textContent = '';
+      return;
+    }
+    repoSearchTimer = setTimeout(async () => {
+      document.getElementById('repoPresetsLabel')?.classList.add('hidden');
+      document.getElementById('repoPresets')?.classList.add('hidden');
+      const grid  = document.getElementById('repoGrid');
+      const stats = document.getElementById('repoStats');
+      if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">SEARCHING…</div>`;
+      if (stats) stats.textContent = '';
+      try {
+        const docs = await RepositoryBrowser.search(q + ' AND (pinball OR arcade)');
+        UI.renderRepoResults(docs);
+      } catch (err) {
+        if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
+      }
+    }, 500);
+  });
+
+  // Back button — restore presets or previous results
+  document.getElementById('repoBackBtn')?.addEventListener('click', () => {
+    document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
+    document.getElementById('repoPresets')?.classList.remove('hidden');
+    document.getElementById('repoBackBtn')?.classList.add('hidden');
+    document.getElementById('repoGrid').innerHTML = '';
+    document.getElementById('repoStats').textContent = '';
+    repoSearchInput.value = '';
   });
 
   // ── Load registry & initial render ──────────────────────────────────────────
