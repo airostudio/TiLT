@@ -72,6 +72,18 @@ if(USE_SYSTEM_LIBS)
         set(XML_LIBRARY pugixml::pugixml)
     endif()
 
+    # CURL - HTTP downloads (DownloadManager)
+    find_package(CURL REQUIRED)
+    if(CURL_FOUND)
+        message(STATUS "Found CURL: ${CURL_VERSION_STRING}")
+    endif()
+
+    # nlohmann/json - JSON parsing (DownloadManager)
+    find_package(nlohmann_json REQUIRED)
+    if(nlohmann_json_FOUND)
+        message(STATUS "Found nlohmann_json: ${nlohmann_json_VERSION}")
+    endif()
+
     # Vulkan SDK (optional)
     if(ENABLE_VULKAN)
         find_package(Vulkan)

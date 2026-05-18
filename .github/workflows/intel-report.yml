@@ -31,6 +31,8 @@ jobs:
             libopenal-dev \
             libpugixml-dev \
             libvulkan-dev \
+            libcurl4-openssl-dev \
+            nlohmann-json3-dev \
             cloc
 
       - name: Setup vendor libraries
@@ -88,12 +90,15 @@ jobs:
           DISPLAY_LIB_SIZE="N/A"
           FRONTEND_LIB_SIZE="N/A"
 
+          TILT_DOWNLOAD_SIZE="N/A"
+
           if [ "$BUILD_STATUS" = "SUCCESS" ]; then
-            [ -f build/tilt ]           && TILT_SIZE=$(du -sh build/tilt | cut -f1)
-            [ -f build/tilt-import ]    && TILT_IMPORT_SIZE=$(du -sh build/tilt-import | cut -f1)
-            [ -f build/core/libtilt_core.a ]       && CORE_LIB_SIZE=$(du -sh build/core/libtilt_core.a | cut -f1)
-            [ -f build/tools/libtilt_tools.a ]     && TOOLS_LIB_SIZE=$(du -sh build/tools/libtilt_tools.a | cut -f1)
-            [ -f build/display/libtilt_display.a ] && DISPLAY_LIB_SIZE=$(du -sh build/display/libtilt_display.a | cut -f1)
+            [ -f build/tilt ]              && TILT_SIZE=$(du -sh build/tilt | cut -f1)
+            [ -f build/tilt-import ]       && TILT_IMPORT_SIZE=$(du -sh build/tilt-import | cut -f1)
+            [ -f build/tilt-download ]     && TILT_DOWNLOAD_SIZE=$(du -sh build/tilt-download | cut -f1)
+            [ -f build/core/libtilt_core.a ]         && CORE_LIB_SIZE=$(du -sh build/core/libtilt_core.a | cut -f1)
+            [ -f build/tools/libtilt_tools.a ]       && TOOLS_LIB_SIZE=$(du -sh build/tools/libtilt_tools.a | cut -f1)
+            [ -f build/display/libtilt_display.a ]   && DISPLAY_LIB_SIZE=$(du -sh build/display/libtilt_display.a | cut -f1)
             [ -f build/frontend/libtilt_frontend.a ] && FRONTEND_LIB_SIZE=$(du -sh build/frontend/libtilt_frontend.a | cut -f1)
           fi
 
@@ -140,6 +145,7 @@ jobs:
 |--------|------|
 | \`tilt\` (main executable) | ${TILT_SIZE} |
 | \`tilt-import\` (import tool) | ${TILT_IMPORT_SIZE} |
+| \`tilt-download\` (on-demand downloader) | ${TILT_DOWNLOAD_SIZE} |
 | \`libtilt_core.a\` | ${CORE_LIB_SIZE} |
 | \`libtilt_display.a\` | ${DISPLAY_LIB_SIZE} |
 | \`libtilt_frontend.a\` | ${FRONTEND_LIB_SIZE} |
