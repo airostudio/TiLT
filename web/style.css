@@ -1,8 +1,11 @@
-/* ── Fonts ─────────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;600;700;900&display=swap');
+/* Fonts are loaded once via <link crossorigin> in index.html — a CSS @import
+   cannot carry crossorigin and breaks under COEP: require-corp. */
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* Generic visibility toggle used across the app (Browse tab, progress bars) */
+.hidden { display: none !important; }
 
 /* ── Design tokens ─────────────────────────────────────────────────────────── */
 :root {
@@ -81,8 +84,36 @@ svg {
   flex-shrink: 0;
 }
 
+/* ── Focus visibility (keyboard navigation) ────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+.table-card:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-color: var(--cyan-dim);
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .loading-spinner { animation: spin 1.5s linear infinite !important; }
+}
+
 /* ── Layout ────────────────────────────────────────────────────────────────── */
-body { display: flex; flex-direction: column; min-height: 100vh; position: relative; }
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+}
 
 .spa-main {
   flex: 1;
@@ -1036,6 +1067,7 @@ select:focus { border-color: var(--cyan); }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
+html { scrollbar-width: thin; scrollbar-color: rgba(0,240,255,0.2) var(--bg); }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 3px; }

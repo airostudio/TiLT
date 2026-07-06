@@ -10,7 +10,6 @@
       "rating": 5.0,
       "type": "pinball",
       "badge": "Classic",
-      "screenshot": "screenshots/medieval-madness.jpg",
       "description": "Storm the castle! Arguably the greatest pinball machine ever made."
     },
     {
@@ -21,7 +20,6 @@
       "rating": 4.9,
       "type": "pinball",
       "badge": "Classic",
-      "screenshot": "screenshots/attack-from-mars.jpg",
       "description": "Defend Earth from Martian invaders in this beloved Bally classic."
     },
     {
@@ -32,7 +30,6 @@
       "rating": 4.9,
       "type": "pinball",
       "badge": "Iconic",
-      "screenshot": "screenshots/addams-family.jpg",
       "description": "The best-selling pinball machine of all time. They're creepy and they're kooky."
     },
     {
@@ -43,7 +40,6 @@
       "rating": 4.8,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/theatre-of-magic.jpg",
       "description": "A magical journey through a world of illusions and mystery."
     },
     {
@@ -54,7 +50,6 @@
       "rating": 4.8,
       "type": "pinball",
       "badge": "Iconic",
-      "screenshot": "screenshots/twilight-zone.jpg",
       "description": "You're traveling into a dimension of sight and sound. The most complex pinball ever."
     },
     {
@@ -65,7 +60,6 @@
       "rating": 4.7,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/indiana-jones.jpg",
       "description": "Why did it have to be snakes? Adventure awaits on this Williams gem."
     },
     {
@@ -76,7 +70,6 @@
       "rating": 4.7,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/monster-bash.jpg",
       "description": "Join the monster rock band. The last great Williams pinball machine."
     },
     {
@@ -87,7 +80,6 @@
       "rating": 4.6,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/scared-stiff.jpg",
       "description": "Elvira hosts this spine-tingling pinball adventure."
     },
     {
@@ -98,7 +90,6 @@
       "rating": 4.6,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/star-trek-tng.jpg",
       "description": "Engage! The most technically ambitious pinball of the early 90s."
     },
     {
@@ -109,7 +100,6 @@
       "rating": 4.5,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/cirqus-voltaire.jpg",
       "description": "Join the Cirqus! A quirky, colorful masterpiece by Pat Lawlor."
     },
     {
@@ -120,7 +110,6 @@
       "rating": 4.4,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/junk-yard.jpg",
       "description": "Search the junkyard for parts to build a time machine."
     },
     {
@@ -131,7 +120,6 @@
       "rating": 4.3,
       "type": "pinball",
       "badge": null,
-      "screenshot": "screenshots/no-good-gofers.jpg",
       "description": "Putt-putt chaos as you battle two mischievous gophers on the golf course."
     },
     {
@@ -142,7 +130,6 @@
       "rating": 5.0,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/pac-man.jpg",
       "description": "Waka waka waka. The most iconic arcade game ever created."
     },
     {
@@ -153,7 +140,6 @@
       "rating": 4.9,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/donkey-kong.jpg",
       "description": "Jumpman vs. the big ape. Mario's debut on the arcade scene."
     },
     {
@@ -164,7 +150,6 @@
       "rating": 4.9,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/galaga.jpg",
       "description": "The evolution of Galaxian. Challenge Stage still blows minds."
     },
     {
@@ -175,7 +160,6 @@
       "rating": 4.8,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/space-invaders.jpg",
       "description": "The game that started it all. Defend Earth from wave after wave."
     },
     {
@@ -186,7 +170,6 @@
       "rating": 4.7,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/defender.jpg",
       "description": "Protect the humanoids! The most complex arcade game of its era."
     },
     {
@@ -197,7 +180,6 @@
       "rating": 4.7,
       "type": "arcade",
       "badge": "Arcade",
-      "screenshot": "screenshots/tempest.jpg",
       "description": "Vector graphics at their finest. Zap the creatures crawling up the tubes."
     }
   ]

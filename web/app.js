@@ -88,7 +88,10 @@ const RepositoryBrowser = (() => {
   const IA_META   = 'https://archive.org/metadata';
   const IA_DL     = 'https://archive.org/download';
 
-  const GAME_EXTS = ['.vpx', '.vpt', '.fpt', '.zip', '.7z', '.rom'];
+  // Kept in sync with ALLOWED_EXT (upload validation): everything saved to
+  // the library gets a Play button, so only offer formats the engine and the
+  // upload path both accept.
+  const GAME_EXTS = ['.vpx', '.vpt', '.fpt', '.zip'];
 
   // Curated starting points — all freely distributable content.
   const PRESETS = [
@@ -123,11 +126,11 @@ const RepositoryBrowser = (() => {
     return GAME_EXTS.some(ext => lower.endsWith(ext));
   }
 
-  async function search(query) {
+  async function search(query, signal) {
     const url = `${IA_SEARCH}?q=${encodeURIComponent(query)}`
               + `&fl[]=identifier&fl[]=title&fl[]=description&fl[]=item_size`
               + `&rows=24&output=json`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.response?.docs ?? [];
@@ -143,7 +146,10 @@ const RepositoryBrowser = (() => {
   }
 
   async function downloadFile(itemId, filename, onProgress) {
-    const url = `${IA_DL}/${encodeURIComponent(itemId)}/${encodeURIComponent(filename)}`;
+    // Archive.org file names routinely contain subdirectories — encode each
+    // path segment but keep the '/' separators intact.
+    const encodedPath = filename.split('/').map(encodeURIComponent).join('/');
+    const url = `${IA_DL}/${encodeURIComponent(itemId)}/${encodedPath}`;
     const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -186,18 +192,18 @@ const TableRegistry = (() => {
     if (_promise) return _promise;
 
     _promise = (async () => {
-      try {
-        const res = await fetch('tables.json', { cache: 'no-cache' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        _entries = Array.isArray(data.entries) ? data.entries : [];
-      } catch (err) {
-        console.warn('[TiLT] Could not load tables.json, using empty registry:', err);
-        _entries = [];
-      }
+      const res = await fetch('tables.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      _entries = Array.isArray(data.entries) ? data.entries : [];
       _loaded = true;
       return _entries;
-    })();
+    })().catch(err => {
+      // Propagate so the caller can render an error state, and clear the
+      // cached promise so a reload/retry can attempt the fetch again.
+      _promise = null;
+      throw err;
+    });
 
     return _promise;
   }
@@ -271,6 +277,13 @@ const WasmLoader = (() => {
       script.async   = true;
       script.onerror = () => reject(new Error('Failed to load tilt.js'));
       document.body.appendChild(script);
+    });
+
+    // A failed load must not be cached forever — clear it so the next Play
+    // click re-injects the script instead of instantly re-rejecting.
+    loadPromise = loadPromise.catch(err => {
+      loadPromise = null;
+      throw err;
     });
 
     return loadPromise;
@@ -377,7 +390,13 @@ const NEON_PALETTES = [
   { bg: '#1a0a00', primary: '#ff8800', secondary: '#ffff00', grid: '#ff8800' },
 ];
 
+const _placeholderCache = new Map();
+
 function _generatePlaceholder(name, idx, type) {
+  const cacheKey = `${name}|${idx % NEON_PALETTES.length}|${type}`;
+  const cached = _placeholderCache.get(cacheKey);
+  if (cached) return cached;
+
   const p = NEON_PALETTES[idx % NEON_PALETTES.length];
 
   // Shorten name for display
@@ -466,7 +485,9 @@ function _generatePlaceholder(name, idx, type) {
   <rect width="200" height="300" fill="none" stroke="${p.primary}" stroke-width="1.5" opacity="0.25"/>
 </svg>`;
 
-  return 'data:image/svg+xml,' + encodeURIComponent(svg);
+  const uri = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  _placeholderCache.set(cacheKey, uri);
+  return uri;
 }
 
 // ============================================================================
@@ -475,7 +496,19 @@ function _generatePlaceholder(name, idx, type) {
 
 const UI = (() => {
 
+  // Build a full-width status line for a grid (loading / error / empty).
+  // Uses textContent so server-derived text can never inject markup.
+  function _gridMessage(grid, text, colorVar = '--text-dim') {
+    const div = document.createElement('div');
+    div.style.cssText = `grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;letter-spacing:0.1em;color:var(${colorVar})`;
+    div.textContent = text;
+    grid.replaceChildren(div);
+  }
+
   // ── Launcher ───────────────────────────────────────────────────────────────
+
+  let _progressWired = false;
+  let _launcherReturnFocus = null;
 
   function showLauncher(tableName) {
     const launcher = document.getElementById('launcher');
@@ -488,7 +521,17 @@ const UI = (() => {
     overlay.classList.remove('fade-out');
     setEngineStatus('Downloading engine…', 5);
 
-    WasmLoader.onProgress((pct, text) => setEngineStatus(text, pct));
+    // Register the progress listener exactly once — WasmLoader keeps
+    // listeners for the page lifetime, so re-registering per launch leaks.
+    if (!_progressWired) {
+      _progressWired = true;
+      WasmLoader.onProgress((pct, text) => setEngineStatus(text, pct));
+    }
+
+    // Move keyboard focus into the dialog so Tab doesn't land on the
+    // library hidden behind the full-screen overlay.
+    _launcherReturnFocus = document.activeElement;
+    document.getElementById('btnBack')?.focus();
   }
 
   function hideLauncher() {
@@ -496,6 +539,8 @@ const UI = (() => {
     document.body.style.overflow = '';
     document.getElementById('engineLoading').classList.remove('hidden');
     document.getElementById('engineLoading').classList.remove('fade-out');
+    _launcherReturnFocus?.focus?.();
+    _launcherReturnFocus = null;
   }
 
   function setEngineStatus(text, pct) {
@@ -532,29 +577,29 @@ const UI = (() => {
     const m = manufacturer || '';
     const t = typeFilter   || 'all';
 
-    const filtered = entries.filter(e => {
-      const matchQ = !q || e.name.toLowerCase().includes(q) || (e.manufacturer || '').toLowerCase().includes(q);
-      const matchM = !m || e.manufacturer === m;
-      const matchT = t === 'all' || e.type === t;
-      return matchQ && matchM && matchT;
-    });
+    // Carry the original index through the filter so each card keeps a
+    // stable palette without an O(n²) indexOf per render.
+    const filtered = entries
+      .map((entry, globalIdx) => ({ entry, globalIdx }))
+      .filter(({ entry: e }) => {
+        const matchQ = !q || e.name.toLowerCase().includes(q) || (e.manufacturer || '').toLowerCase().includes(q);
+        const matchM = !m || e.manufacturer === m;
+        const matchT = t === 'all' || e.type === t;
+        return matchQ && matchM && matchT;
+      });
 
     stats.textContent = (q || m || t !== 'all')
       ? `${filtered.length} of ${entries.length} games`
       : `${entries.length} games in registry`;
 
-    grid.innerHTML = '';
-
     if (!filtered.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);letter-spacing:0.1em">NO GAMES FOUND</div>`;
+      _gridMessage(grid, 'NO GAMES FOUND');
       return;
     }
 
-    filtered.forEach((entry, i) => {
-      // Map back to original index for consistent palette
-      const globalIdx = entries.indexOf(entry);
-      grid.appendChild(_buildRegistryCard(entry, globalIdx));
-    });
+    grid.replaceChildren(
+      ...filtered.map(({ entry, globalIdx }) => _buildRegistryCard(entry, globalIdx))
+    );
   }
 
   /**
@@ -706,7 +751,10 @@ const UI = (() => {
         GameController.launch(file, displayName);
       } catch (err) {
         console.error('[TiLT] Could not retrieve table from IDB:', err);
-        alert('Could not load the table file. It may have been removed from local storage.');
+        Dialog.show({
+          title: 'Table Unavailable',
+          message: 'Could not load the table file. It may have been removed from local storage.',
+        });
       }
     });
 
@@ -717,9 +765,16 @@ const UI = (() => {
     delBtn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!confirm(`Delete "${meta.name}" from local storage?`)) return;
+      const ok = await Dialog.show({
+        title: 'Delete Table?',
+        message: `Delete "${meta.name}" from local storage?`,
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+      });
+      if (!ok) return;
       await TableDB.deleteTable(meta.name);
       const updated = await TableDB.getTables();
+      state.userTables = updated;
       UI.renderUserLibrary(updated);
     });
 
@@ -730,11 +785,24 @@ const UI = (() => {
 
   // ── Coming-soon modal ──────────────────────────────────────────────────────
 
+  let _csmReturnFocus = null;
+
   function _showComingSoon(tableName) {
+    _csmReturnFocus = document.activeElement;
     document.getElementById('csmTableName').textContent = `"${tableName}"`;
     document.getElementById('comingSoonModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     document.getElementById('csmCloseBtn').focus();
+  }
+
+  function closeComingSoon() {
+    const modal = document.getElementById('comingSoonModal');
+    if (!modal || modal.classList.contains('hidden')) return false;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+    _csmReturnFocus?.focus?.();
+    _csmReturnFocus = null;
+    return true;
   }
 
   // ── Section navigation ─────────────────────────────────────────────────────
@@ -742,8 +810,10 @@ const UI = (() => {
   function activateSection(id) {
     document.querySelectorAll('.spa-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-tab[data-section]').forEach(b => {
-      b.classList.toggle('active', b.dataset.section === id);
-      b.setAttribute('aria-current', b.dataset.section === id ? 'page' : 'false');
+      const isActive = b.dataset.section === id;
+      b.classList.toggle('active', isActive);
+      if (isActive) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
     });
     const target = document.getElementById(`section-${id}`);
     if (target) target.classList.add('active');
@@ -771,14 +841,17 @@ const UI = (() => {
     const back  = document.getElementById('repoBackBtn');
     if (!grid) return;
 
+    // Remember the result set so Back (from a file listing) can restore it.
+    state.repoDocs = docs;
+
     back?.classList.add('hidden');
     if (stats) stats.textContent = `${docs.length} result${docs.length !== 1 ? 's' : ''} from Internet Archive`;
 
-    grid.innerHTML = '';
     if (!docs.length) {
-      grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--text-dim);letter-spacing:0.1em">NO RESULTS</div>`;
+      _gridMessage(grid, 'NO RESULTS');
       return;
     }
+    grid.innerHTML = '';
 
     docs.forEach((doc, i) => {
       const card = document.createElement('div');
@@ -844,7 +917,7 @@ const UI = (() => {
     const presetsLabel = document.getElementById('repoPresetsLabel');
     const presets      = document.getElementById('repoPresets');
 
-    if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">LOADING FILES…</div>`;
+    if (grid)  _gridMessage(grid, 'LOADING FILES…', '--cyan');
     if (stats) stats.textContent = '';
 
     try {
@@ -853,16 +926,14 @@ const UI = (() => {
       presetsLabel?.classList.add('hidden');
       presets?.classList.add('hidden');
       back?.classList.remove('hidden');
-      back._itemId    = itemId;
-      back._itemTitle = itemTitle;
 
       if (stats) stats.textContent = `${files.length} game file${files.length !== 1 ? 's' : ''} in "${itemTitle}"`;
 
-      grid.innerHTML = '';
       if (!files.length) {
-        grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--text-dim)">NO GAME FILES FOUND</div>`;
+        _gridMessage(grid, 'NO GAME FILES FOUND');
         return;
       }
+      grid.innerHTML = '';
 
       files.forEach((f, i) => {
         const row = document.createElement('div');
@@ -924,11 +995,15 @@ const UI = (() => {
             const text = progress.querySelector('.repo-progress-text');
             if (text) text.textContent = '';
 
+            // A CORS-blocked fetch throws a TypeError with browser-specific
+            // wording ("Failed to fetch" / "NetworkError…"), so key off the
+            // error type instead of matching Chrome's message.
             const errEl = document.createElement('span');
             errEl.className   = 'repo-file-error';
-            errEl.textContent = err.message.includes('CORS') || err.message.includes('Failed to fetch')
-              ? 'CORS blocked — use Upload tab to add the file manually'
+            errEl.textContent = (err instanceof TypeError)
+              ? 'Download blocked (CORS) — grab the file from archive.org and add it via the Upload tab'
               : `Error: ${err.message}`;
+            row.querySelector('.repo-file-error')?.remove();
             row.appendChild(errEl);
           }
         });
@@ -938,7 +1013,10 @@ const UI = (() => {
       });
 
     } catch (err) {
-      if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
+      if (grid) _gridMessage(grid, `ERROR: ${err.message}`, '--red');
+      // Don't strand the user on an empty screen — bring Back into view so
+      // they can return to the results/presets.
+      back?.classList.remove('hidden');
     }
   }
 
@@ -948,8 +1026,78 @@ const UI = (() => {
     renderLibrary, renderUserLibrary,
     renderRepoPresets, renderRepoResults,
     loadRepoFiles: _loadRepoFiles,
-    activateSection,
+    gridMessage: _gridMessage,
+    activateSection, closeComingSoon,
   };
+})();
+
+// ============================================================================
+// Module: Dialog  —  styled in-app confirm/alert (replaces native dialogs)
+// ============================================================================
+
+const Dialog = (() => {
+  let _resolve   = null;
+  let _lastFocus = null;
+
+  const _el = id => document.getElementById(id);
+
+  function _close(result) {
+    _el('confirmModal').classList.add('hidden');
+    document.body.style.overflow = '';
+    _lastFocus?.focus?.();
+    _lastFocus = null;
+    const r = _resolve;
+    _resolve = null;
+    r?.(result);
+  }
+
+  /**
+   * Show a modal dialog. Resolves true on confirm, false on cancel/dismiss.
+   * Omit cancelText for a single-button alert.
+   */
+  function show({ title, message, confirmText = 'OK', cancelText = null }) {
+    return new Promise(resolve => {
+      _resolve   = resolve;
+      _lastFocus = document.activeElement;
+
+      _el('cfmTitle').textContent      = title;
+      _el('cfmMessage').textContent    = message;
+      _el('cfmConfirmBtn').textContent = confirmText;
+
+      const cancelBtn = _el('cfmCancelBtn');
+      cancelBtn.textContent = cancelText || '';
+      cancelBtn.classList.toggle('hidden', !cancelText);
+
+      _el('confirmModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      _el('cfmConfirmBtn').focus();
+    });
+  }
+
+  function isOpen() { return _resolve !== null; }
+
+  function wire() {
+    _el('cfmConfirmBtn')?.addEventListener('click', () => _close(true));
+    _el('cfmCancelBtn')?.addEventListener('click', () => _close(false));
+    _el('cfmBackdrop')?.addEventListener('click', () => _close(false));
+
+    _el('confirmModal')?.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        _close(false);
+      } else if (e.key === 'Tab') {
+        // Trap focus between the two dialog buttons.
+        const buttons = [_el('cfmConfirmBtn'), _el('cfmCancelBtn')]
+          .filter(b => b && !b.classList.contains('hidden'));
+        if (buttons.length < 2) { e.preventDefault(); return; }
+        const [first, last] = [buttons[0], buttons[buttons.length - 1]];
+        if (e.shiftKey && document.activeElement === first)      { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+  }
+
+  return { show, wire, isOpen };
 })();
 
 // ============================================================================
@@ -962,6 +1110,7 @@ const state = {
   typeFilter:   'all',
   userTables:   [],
   entries:      [],
+  repoDocs:     [],   // last Browse-tab search results (for Back navigation)
 };
 
 // ============================================================================
@@ -972,27 +1121,45 @@ const ALLOWED_EXT = new Set(['vpx', 'fpt', 'vpt', 'zip']);
 
 function extOf(name)       { return (name.split('.').pop() || '').toLowerCase(); }
 function isTableFile(name) { return ALLOWED_EXT.has(extOf(name)); }
-function formatBytes(b)    { return b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB'; }
+
+function formatBytes(b) {
+  if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
+  if (b >= 1048576)    return (b / 1048576).toFixed(1) + ' MB';
+  return (b / 1024).toFixed(1) + ' KB';
+}
 
 async function handleFiles(fileList) {
   const queue = document.getElementById('uploadQueue');
   const files = Array.from(fileList).filter(f => isTableFile(f.name));
 
   if (!files.length) {
-    alert('No supported table files found. Please upload .vpx, .fpt, .vpt, or .zip files.');
+    Dialog.show({
+      title: 'Unsupported Files',
+      message: 'No supported table files found. Please upload .vpx, .fpt, .vpt, or .zip files.',
+    });
     return;
   }
 
   for (const file of files) {
+    // Built with createElement/textContent — file names are user-controlled
+    // and must never reach innerHTML.
     const li = document.createElement('li');
     li.className = 'upload-item';
-    li.innerHTML = `
-      <span class="upload-item-name">${file.name}</span>
-      <span class="upload-item-size">${formatBytes(file.size)}</span>
-      <span class="upload-item-status pending">Saving…</span>
-    `;
+
+    const nameEl = document.createElement('span');
+    nameEl.className   = 'upload-item-name';
+    nameEl.textContent = file.name;
+
+    const sizeEl = document.createElement('span');
+    sizeEl.className   = 'upload-item-size';
+    sizeEl.textContent = formatBytes(file.size);
+
+    const statusEl = document.createElement('span');
+    statusEl.className   = 'upload-item-status pending';
+    statusEl.textContent = 'Saving…';
+
+    li.append(nameEl, sizeEl, statusEl);
     queue.prepend(li);
-    const statusEl = li.querySelector('.upload-item-status');
 
     try {
       await TableDB.saveTable(file);
@@ -1015,6 +1182,8 @@ async function handleFiles(fileList) {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  Dialog.wire();
+
   // ── Navigation tabs ─────────────────────────────────────────────────────────
   document.querySelectorAll('.nav-tab[data-section]').forEach(btn => {
     btn.addEventListener('click', () => UI.activateSection(btn.dataset.section));
@@ -1023,8 +1192,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Type filter buttons ─────────────────────────────────────────────────────
   document.querySelectorAll('.type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       state.typeFilter = btn.dataset.type || 'all';
       UI.renderLibrary(state.entries, state.search, state.manufacturer, state.typeFilter);
     });
@@ -1043,8 +1216,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   filterManufacturer?.addEventListener('change', e => { state.manufacturer = e.target.value; applyFilter(); });
 
   // ── Launcher controls ───────────────────────────────────────────────────────
-  document.getElementById('btnBack')?.addEventListener('click', () => {
-    if (confirm('Stop the current game and return to the library?')) GameController.stop();
+  document.getElementById('btnBack')?.addEventListener('click', async () => {
+    const ok = await Dialog.show({
+      title: 'Exit Game?',
+      message: 'Stop the current game and return to the library?',
+      confirmText: 'Exit',
+      cancelText: 'Keep Playing',
+    });
+    if (ok) GameController.stop();
   });
 
   document.getElementById('btnFullscreen')?.addEventListener('click', () => {
@@ -1090,6 +1269,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   pickBtn?.addEventListener('click', () => fileInput?.click());
 
+  // The whole drop zone advertises "click to browse" and is keyboard
+  // focusable — wire it up (ignoring clicks that came from the inner button,
+  // which already opens the picker).
+  uploadZone?.addEventListener('click', e => {
+    if (e.target.closest('#uploadPickBtn')) return;
+    fileInput?.click();
+  });
+  uploadZone?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  });
+
   fileInput?.addEventListener('change', e => {
     if (e.target.files?.length) handleFiles(e.target.files);
     e.target.value = '';
@@ -1108,94 +1301,104 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Coming-soon modal ───────────────────────────────────────────────────────
-  document.getElementById('csmBackdrop')?.addEventListener('click', () => {
-    document.getElementById('comingSoonModal').classList.add('hidden');
-    document.body.style.overflow = '';
-  });
-  document.getElementById('csmCloseBtn')?.addEventListener('click', () => {
-    document.getElementById('comingSoonModal').classList.add('hidden');
-    document.body.style.overflow = '';
-  });
+  document.getElementById('csmBackdrop')?.addEventListener('click', () => UI.closeComingSoon());
+  document.getElementById('csmCloseBtn')?.addEventListener('click', () => UI.closeComingSoon());
   document.getElementById('csmUploadBtn')?.addEventListener('click', () => {
-    document.getElementById('comingSoonModal').classList.add('hidden');
-    document.body.style.overflow = '';
+    UI.closeComingSoon();
     UI.activateSection('upload');
   });
+  // closeComingSoon() is a no-op (returns false) when the modal is closed, so
+  // Escape pressed elsewhere — e.g. exiting fullscreen mid-game — no longer
+  // unlocks body scroll behind the launcher overlay.
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      document.getElementById('comingSoonModal')?.classList.add('hidden');
-      document.body.style.overflow = '';
-    }
+    if (e.key === 'Escape') UI.closeComingSoon();
   });
 
   // ── Repository browser ──────────────────────────────────────────────────────
 
   UI.renderRepoPresets(RepositoryBrowser.PRESETS);
 
+  const repoSearchInput = document.getElementById('repoSearchInput');
+  let repoSearchTimer;
+  let repoSearchAbort = null;
+
+  function showRepoPresets() {
+    document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
+    document.getElementById('repoPresets')?.classList.remove('hidden');
+    document.getElementById('repoBackBtn')?.classList.add('hidden');
+    document.getElementById('repoGrid').replaceChildren();
+    document.getElementById('repoStats').textContent = '';
+    state.repoDocs = [];
+  }
+
+  function hideRepoPresets() {
+    document.getElementById('repoPresetsLabel')?.classList.add('hidden');
+    document.getElementById('repoPresets')?.classList.add('hidden');
+  }
+
+  // Run an abortable Archive.org search and render the results.
+  // A newer search cancels any in-flight one so stale responses can never
+  // overwrite fresher results.
+  async function runRepoSearch(query) {
+    repoSearchAbort?.abort();
+    repoSearchAbort = new AbortController();
+    const signal = repoSearchAbort.signal;
+
+    hideRepoPresets();
+    const grid = document.getElementById('repoGrid');
+    if (grid) UI.gridMessage(grid, 'SEARCHING…', '--cyan');
+    document.getElementById('repoStats').textContent = '';
+
+    try {
+      const docs = await RepositoryBrowser.search(query, signal);
+      if (signal.aborted) return;
+      UI.renderRepoResults(docs);
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      if (grid) UI.gridMessage(grid, `ERROR: ${err.message}`, '--red');
+      // Recovery path: bring the presets back so the tab isn't a dead end.
+      document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
+      document.getElementById('repoPresets')?.classList.remove('hidden');
+    }
+  }
+
   // Preset button clicks
-  document.getElementById('repoPresets')?.addEventListener('click', async e => {
+  document.getElementById('repoPresets')?.addEventListener('click', e => {
     const btn = e.target.closest('.preset-btn');
     if (!btn) return;
     const { id, type } = btn.dataset;
     const label = btn.querySelector('.preset-label')?.textContent ?? id;
 
-    document.getElementById('repoPresetsLabel')?.classList.add('hidden');
-    document.getElementById('repoPresets')?.classList.add('hidden');
-
     if (type === 'item') {
+      hideRepoPresets();
+      state.repoDocs = [];
       UI.loadRepoFiles(id, label);
     } else {
-      const grid  = document.getElementById('repoGrid');
-      const stats = document.getElementById('repoStats');
-      if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">SEARCHING…</div>`;
-      if (stats) stats.textContent = '';
-      try {
-        const docs = await RepositoryBrowser.search(id);
-        UI.renderRepoResults(docs);
-      } catch (err) {
-        if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
-      }
+      runRepoSearch(id);
     }
   });
 
-  // Search bar
-  const repoSearchInput = document.getElementById('repoSearchInput');
-  let repoSearchTimer;
+  // Search bar (debounced, abortable)
   repoSearchInput?.addEventListener('input', e => {
     clearTimeout(repoSearchTimer);
     const q = e.target.value.trim();
     if (!q) {
-      document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
-      document.getElementById('repoPresets')?.classList.remove('hidden');
-      document.getElementById('repoBackBtn')?.classList.add('hidden');
-      document.getElementById('repoGrid').innerHTML = '';
-      document.getElementById('repoStats').textContent = '';
+      repoSearchAbort?.abort();
+      showRepoPresets();
       return;
     }
-    repoSearchTimer = setTimeout(async () => {
-      document.getElementById('repoPresetsLabel')?.classList.add('hidden');
-      document.getElementById('repoPresets')?.classList.add('hidden');
-      const grid  = document.getElementById('repoGrid');
-      const stats = document.getElementById('repoStats');
-      if (grid)  grid.innerHTML = `<div style="grid-column:1/-1;padding:40px 20px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--cyan)">SEARCHING…</div>`;
-      if (stats) stats.textContent = '';
-      try {
-        const docs = await RepositoryBrowser.search(q + ' AND (pinball OR arcade)');
-        UI.renderRepoResults(docs);
-      } catch (err) {
-        if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">ERROR: ${err.message}</div>`;
-      }
-    }, 500);
+    repoSearchTimer = setTimeout(() => runRepoSearch(q + ' AND (pinball OR arcade)'), 500);
   });
 
-  // Back button — restore presets or previous results
+  // Back button — visible on a file listing; return to the search results
+  // that led there, or to the presets if there were none.
   document.getElementById('repoBackBtn')?.addEventListener('click', () => {
-    document.getElementById('repoPresetsLabel')?.classList.remove('hidden');
-    document.getElementById('repoPresets')?.classList.remove('hidden');
-    document.getElementById('repoBackBtn')?.classList.add('hidden');
-    document.getElementById('repoGrid').innerHTML = '';
-    document.getElementById('repoStats').textContent = '';
-    repoSearchInput.value = '';
+    if (state.repoDocs.length) {
+      UI.renderRepoResults(state.repoDocs);
+    } else {
+      showRepoPresets();
+      repoSearchInput.value = '';
+    }
   });
 
   // ── Load registry & initial render ──────────────────────────────────────────
@@ -1221,7 +1424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     UI.renderLibrary(state.entries, '', '', 'all');
   } catch (e) {
     console.error('[TiLT] Registry load error:', e);
-    if (grid) grid.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;font-family:var(--font-pixel);font-size:9px;color:var(--red)">REGISTRY ERROR</div>`;
+    if (grid)  UI.gridMessage(grid, 'REGISTRY ERROR — RELOAD TO RETRY', '--red');
+    if (stats) stats.textContent = 'Could not load the game registry';
   }
 
   try {

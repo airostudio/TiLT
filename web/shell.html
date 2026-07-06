@@ -317,9 +317,9 @@
         showError(what);
       },
 
-      // Total memory configured in CMakeLists.txt (-sINITIAL_MEMORY=134217728).
-      // Declaring it here so the module can see it before the WASM is fetched.
-      INITIAL_MEMORY: 134217728,
+      // NOTE: do NOT set INITIAL_MEMORY here — it is baked in at link time
+      // (CMakeLists -sINITIAL_MEMORY). Setting it on Module at runtime trips
+      // Emscripten's "Use -sIMPORTED_MEMORY" assertion and aborts on boot.
     };
 
     // Catch synchronous errors thrown during module boot.
