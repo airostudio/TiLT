@@ -23,12 +23,17 @@ const TableDB = (() => {
     });
   }
 
-  async function saveTable(file) {
+  /**
+   * @param {File}   file
+   * @param {object} extra  Optional metadata (e.g. { thumb: url }) persisted
+   *                        alongside the file and returned by getTables().
+   */
+  async function saveTable(file, extra = {}) {
     const db = await open();
     return new Promise((resolve, reject) => {
       const tx    = db.transaction(STORE, 'readwrite');
       const store = tx.objectStore(STORE);
-      const record = { name: file.name, size: file.size, lastModified: file.lastModified, file };
+      const record = { name: file.name, size: file.size, lastModified: file.lastModified, file, ...extra };
       const req = store.put(record);
       req.onsuccess = () => resolve();
       req.onerror   = (e) => reject(e.target.error);
@@ -44,7 +49,7 @@ const TableDB = (() => {
       const req     = store.getAll();
       req.onsuccess = (e) => {
         db.close();
-        resolve(e.target.result.map(r => ({ name: r.name, size: r.size, lastModified: r.lastModified })));
+        resolve(e.target.result.map(r => ({ name: r.name, size: r.size, lastModified: r.lastModified, thumb: r.thumb })));
       };
       req.onerror = (e) => reject(e.target.error);
     });
@@ -712,9 +717,21 @@ const UI = (() => {
     thumb.className = 'card-thumb';
 
     const img = document.createElement('img');
-    img.src     = placeholder;
     img.alt     = displayName;
     img.loading = 'lazy';
+    // Downloads from the Browse tab carry the Archive.org thumbnail with
+    // them — use it when present, otherwise the generated placeholder.
+    if (meta.thumb) {
+      img.crossOrigin = 'anonymous';
+      img.src     = meta.thumb;
+      img.onerror = () => {
+        img.onerror = null;
+        img.removeAttribute('crossorigin');
+        img.src = placeholder;
+      };
+    } else {
+      img.src = placeholder;
+    }
     thumb.appendChild(img);
 
     const badge = document.createElement('span');
@@ -863,9 +880,19 @@ const UI = (() => {
       const thumb = document.createElement('div');
       thumb.className = 'card-thumb';
       const img = document.createElement('img');
-      img.src     = placeholder;
-      img.alt     = doc.title || doc.identifier;
-      img.loading = 'lazy';
+      img.alt      = doc.title || doc.identifier;
+      img.loading  = 'lazy';
+      img.decoding = 'async';
+      // Archive.org serves an item thumbnail; try it first and fall back to
+      // the generated placeholder. crossOrigin makes it a CORS request so it
+      // stays loadable under COEP: require-corp.
+      img.crossOrigin = 'anonymous';
+      img.src     = `https://archive.org/services/img/${encodeURIComponent(doc.identifier)}`;
+      img.onerror = () => {
+        img.onerror = null;
+        img.removeAttribute('crossorigin');
+        img.src = placeholder;
+      };
       thumb.appendChild(img);
 
       const badge = document.createElement('span');
@@ -976,7 +1003,11 @@ const UI = (() => {
                 : formatBytes(received);
             });
 
-            await TableDB.saveTable(file);
+            // Keep the item's artwork with the download so the library card
+            // shows the real thumbnail instead of a placeholder.
+            await TableDB.saveTable(file, {
+              thumb: `https://archive.org/services/img/${encodeURIComponent(itemId)}`,
+            });
 
             dlBtn.textContent = '✓ Saved';
             dlBtn.className   = 'btn btn-secondary';

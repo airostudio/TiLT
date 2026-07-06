@@ -10,7 +10,8 @@
       "rating": 5.0,
       "type": "pinball",
       "badge": "Classic",
-      "description": "Storm the castle! Arguably the greatest pinball machine ever made."
+      "description": "Storm the castle! Arguably the greatest pinball machine ever made.",
+      "screenshot": "screenshots/medieval-madness.jpg"
     },
     {
       "id": "attack-from-mars",
@@ -20,7 +21,8 @@
       "rating": 4.9,
       "type": "pinball",
       "badge": "Classic",
-      "description": "Defend Earth from Martian invaders in this beloved Bally classic."
+      "description": "Defend Earth from Martian invaders in this beloved Bally classic.",
+      "screenshot": "screenshots/attack-from-mars.jpg"
     },
     {
       "id": "addams-family",
@@ -30,7 +32,8 @@
       "rating": 4.9,
       "type": "pinball",
       "badge": "Iconic",
-      "description": "The best-selling pinball machine of all time. They're creepy and they're kooky."
+      "description": "The best-selling pinball machine of all time. They're creepy and they're kooky.",
+      "screenshot": "screenshots/addams-family.jpg"
     },
     {
       "id": "theatre-of-magic",
@@ -40,7 +43,8 @@
       "rating": 4.8,
       "type": "pinball",
       "badge": null,
-      "description": "A magical journey through a world of illusions and mystery."
+      "description": "A magical journey through a world of illusions and mystery.",
+      "screenshot": "screenshots/theatre-of-magic.jpg"
     },
     {
       "id": "twilight-zone",
@@ -50,7 +54,8 @@
       "rating": 4.8,
       "type": "pinball",
       "badge": "Iconic",
-      "description": "You're traveling into a dimension of sight and sound. The most complex pinball ever."
+      "description": "You're traveling into a dimension of sight and sound. The most complex pinball ever.",
+      "screenshot": "screenshots/twilight-zone.jpg"
     },
     {
       "id": "indiana-jones",
@@ -60,7 +65,8 @@
       "rating": 4.7,
       "type": "pinball",
       "badge": null,
-      "description": "Why did it have to be snakes? Adventure awaits on this Williams gem."
+      "description": "Why did it have to be snakes? Adventure awaits on this Williams gem.",
+      "screenshot": "screenshots/indiana-jones.jpg"
     },
     {
       "id": "monster-bash",
@@ -70,7 +76,8 @@
       "rating": 4.7,
       "type": "pinball",
       "badge": null,
-      "description": "Join the monster rock band. The last great Williams pinball machine."
+      "description": "Join the monster rock band. The last great Williams pinball machine.",
+      "screenshot": "screenshots/monster-bash.jpg"
     },
     {
       "id": "scared-stiff",
@@ -80,7 +87,8 @@
       "rating": 4.6,
       "type": "pinball",
       "badge": null,
-      "description": "Elvira hosts this spine-tingling pinball adventure."
+      "description": "Elvira hosts this spine-tingling pinball adventure.",
+      "screenshot": "screenshots/scared-stiff.jpg"
     },
     {
       "id": "star-trek-tng",
@@ -90,7 +98,8 @@
       "rating": 4.6,
       "type": "pinball",
       "badge": null,
-      "description": "Engage! The most technically ambitious pinball of the early 90s."
+      "description": "Engage! The most technically ambitious pinball of the early 90s.",
+      "screenshot": "screenshots/star-trek-tng.jpg"
     },
     {
       "id": "cirqus-voltaire",
@@ -100,7 +109,8 @@
       "rating": 4.5,
       "type": "pinball",
       "badge": null,
-      "description": "Join the Cirqus! A quirky, colorful masterpiece by Pat Lawlor."
+      "description": "Join the Cirqus! A quirky, colorful masterpiece by Pat Lawlor.",
+      "screenshot": "screenshots/cirqus-voltaire.jpg"
     },
     {
       "id": "junk-yard",
@@ -110,7 +120,8 @@
       "rating": 4.4,
       "type": "pinball",
       "badge": null,
-      "description": "Search the junkyard for parts to build a time machine."
+      "description": "Search the junkyard for parts to build a time machine.",
+      "screenshot": "screenshots/junk-yard.jpg"
     },
     {
       "id": "no-good-gofers",
@@ -120,7 +131,8 @@
       "rating": 4.3,
       "type": "pinball",
       "badge": null,
-      "description": "Putt-putt chaos as you battle two mischievous gophers on the golf course."
+      "description": "Putt-putt chaos as you battle two mischievous gophers on the golf course.",
+      "screenshot": "screenshots/no-good-gofers.jpg"
     },
     {
       "id": "pac-man",
@@ -130,7 +142,8 @@
       "rating": 5.0,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "Waka waka waka. The most iconic arcade game ever created."
+      "description": "Waka waka waka. The most iconic arcade game ever created.",
+      "screenshot": "screenshots/pac-man.jpg"
     },
     {
       "id": "donkey-kong",
@@ -140,7 +153,8 @@
       "rating": 4.9,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "Jumpman vs. the big ape. Mario's debut on the arcade scene."
+      "description": "Jumpman vs. the big ape. Mario's debut on the arcade scene.",
+      "screenshot": "screenshots/donkey-kong.jpg"
     },
     {
       "id": "galaga",
@@ -150,7 +164,8 @@
       "rating": 4.9,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "The evolution of Galaxian. Challenge Stage still blows minds."
+      "description": "The evolution of Galaxian. Challenge Stage still blows minds.",
+      "screenshot": "screenshots/galaga.jpg"
     },
     {
       "id": "space-invaders",
@@ -160,7 +175,8 @@
       "rating": 4.8,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "The game that started it all. Defend Earth from wave after wave."
+      "description": "The game that started it all. Defend Earth from wave after wave.",
+      "screenshot": "screenshots/space-invaders.jpg"
     },
     {
       "id": "defender",
@@ -170,7 +186,8 @@
       "rating": 4.7,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "Protect the humanoids! The most complex arcade game of its era."
+      "description": "Protect the humanoids! The most complex arcade game of its era.",
+      "screenshot": "screenshots/defender.jpg"
     },
     {
       "id": "tempest",
@@ -180,7 +197,8 @@
       "rating": 4.7,
       "type": "arcade",
       "badge": "Arcade",
-      "description": "Vector graphics at their finest. Zap the creatures crawling up the tubes."
+      "description": "Vector graphics at their finest. Zap the creatures crawling up the tubes.",
+      "screenshot": "screenshots/tempest.jpg"
     }
   ]
 }
