@@ -12,8 +12,8 @@ what has **not** been verified (notably anything on real Windows hardware or wit
 | Working emulator smoke test | ✅ | AROS boots under Amiberry 8.4.0 (`evidence/`), automated in `engine_e2e.rs` |
 
 ## Phase 2: native emulator integration
-| Start/stop real emulator, controls, ROM loading | ✅ (Linux/macOS) / 🟡 (Windows: start/stop only) | ADR-0001 consequences |
-| Display embedded in app window | ⛔ | Engine opens its own window. ADR-0001 options C/D evaluated, not built |
+| Start/stop real emulator, controls, ROM loading | ✅ (Linux/macOS) / 🟡 (Windows: start/stop only in own-window mode; pause/reset/DF0/screenshot via the libretro mode, untested there) | ADR-0001 consequences and update |
+| Display embedded in app window | 🟡 | Own-window mode: engine opens its own window. **Inside-TiLT mode** (`amiga-retro`, libretro core, ADR-0001 option D): picture, mouse and keyboard in the app, Linux-measured, no sound/joystick, not run on Windows |
 | Keyboard/mouse/audio routing | 🟡 | Handled by the engine's own window (SDL); mouse grab toggle via control socket. Gamepad mapping not verified |
 | Reliable cleanup | ✅ | clean quit, forced stop reporting, no orphan process (`Drop`), single-instance guard |
 
@@ -46,6 +46,6 @@ what has **not** been verified (notably anything on real Windows hardware or wit
 
 ## Phase 8: production hardening
 | CI (lint, types, tests, e2e, licence checks) | 🟡 | workflows written; **first run on GitHub not yet observed** |
-| Windows NSIS installer + portable zip | 🟡 | workflow written; produced and installer-tested only on a Windows runner (not run here) |
+| Windows NSIS installer + portable zip | 🟡 | built and structurally verified (cross-compiled on Linux, `scripts/package-windows.sh`); never executed on Windows; unsigned |
 | Code signing | ⬜ | only when credentials exist; releases are labelled unsigned otherwise |
 | Release-readiness report | ✅ | `RELEASE_READINESS.md` (candid) |

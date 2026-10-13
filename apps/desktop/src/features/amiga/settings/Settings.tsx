@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, Icon, KV, Page, PageHeader, Tabs } from '@/components/ui'
 import { useBackend } from '@/app/backend'
 import { useTheme, type Theme } from '@/app/theme'
+import { EmbeddedCard } from './EmbeddedCard'
 import { EngineCard } from './EngineCard'
 import { StorageManager } from './StorageManager'
 import './settings.css'
@@ -89,7 +90,12 @@ export default function Settings() {
       />
       {tab === 'general' && <Appearance />}
       {tab === 'storage' && <StorageManager />}
-      {tab === 'engine' && <EngineCard />}
+      {tab === 'engine' && (
+        <div className="stack">
+          <EngineCard />
+          <EmbeddedCard />
+        </div>
+      )}
       {tab === 'privacy' && <Privacy />}
     </Page>
   )

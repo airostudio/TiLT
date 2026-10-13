@@ -67,3 +67,7 @@ apps/desktop/dist-*/
 apps/desktop/e2e/artifacts/
 apps/desktop/src-tauri/resources/engine/*
 !apps/desktop/src-tauri/resources/engine/README.txt
+apps/desktop/src-tauri/resources/notices/*
+!apps/desktop/src-tauri/resources/notices/README.txt
+dist-windows/
+target/win-package-cache/

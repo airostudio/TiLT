@@ -3,7 +3,7 @@
 # workspace so `cargo test` here does not need the GTK/WebView system libraries.
 [workspace]
 resolver = "2"
-members = ["crates/amiga-core", "crates/amiga-cli", "crates/amiga-service", "crates/tilt-local"]
+members = ["crates/amiga-core", "crates/amiga-cli", "crates/amiga-service", "crates/tilt-local", "crates/amiga-retro"]
 
 [workspace.package]
 version = "0.1.0"

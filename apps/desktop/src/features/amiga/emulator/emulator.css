@@ -175,3 +175,48 @@
   border-radius: 0 var(--radius) var(--radius) 0;
   font-size: var(--fs-sm);
 }
+
+/* live screen (embedded mode) */
+.live-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  background: #000;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+.live-screen:focus-visible {
+  border-color: var(--accent);
+}
+.live-screen.captured {
+  border-color: var(--accent);
+  cursor: none;
+}
+.live-screen img {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  user-select: none;
+}
+.live-wait {
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  padding: var(--space-4);
+}
+.live-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  background: var(--warning);
+  color: #000;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+}

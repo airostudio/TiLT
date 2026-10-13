@@ -8,16 +8,29 @@ const shots: { file: string; title: string; text: string }[] = [
   { file: 'harddrives.png', title: 'Hard Drives', text: 'Import your HDF safely: originals untouched, managed working copy, backups, snapshots, restore.' },
 ]
 
-/** Shown when the page is opened in a plain browser with no TiLT backend (e.g. a web preview). */
+const isLocalHost = () => ['127.0.0.1', 'localhost'].includes(window.location.hostname)
+
+/** Explains, on every screen, why nothing here can be launched when there is no backend. */
+export function OfflineBanner() {
+  return isLocalHost() ? (
+    <Banner tone="warning" title="Open TiLT with its private link">
+      <span data-testid="room-offline">
+        This page is served by <code>tilt-local</code> on your computer, but your browser did not present its access token. Use the full link printed in the terminal where you started it (it ends with <code>?token=…</code>).
+      </span>
+    </Banner>
+  ) : (
+    <Banner tone="warning" title="Preview only: the TiLT backend is not running">
+      <span data-testid="room-offline">
+        You can look around, but nothing can be set up or launched from a web page: starting emulators and reading your ROM folders needs the TiLT desktop app, or <code>tilt-local</code> running on your computer.
+      </span>
+    </Banner>
+  )
+}
+
+/** Screenshots and honest status, shown under the preview Rooms when there is no TiLT backend. */
 export function OfflinePreview() {
-  const local = ['127.0.0.1', 'localhost'].includes(window.location.hostname)
   return (
     <Page>
-      {local && (
-        <Banner tone="warning" title="Open TiLT with its private link">
-          This page is served by <code>tilt-local</code> on your computer, but your browser did not present its access token. Use the full link printed in the terminal where you started it (it ends with <code>?token=…</code>).
-        </Banner>
-      )}
       <div className="stack">
         <div>
           <Badge tone="warning">Web preview</Badge>

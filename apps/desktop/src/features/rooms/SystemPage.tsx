@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { call, errorMessage } from '@/api/client'
-import type { GameEntry, SystemView } from '@/api/types'
+import type { DetectCandidate, GameEntry, SystemView } from '@/api/types'
+import { useBackend } from '@/app/backend'
 import { Badge, Banner, Button, Card, Empty, ErrorNote, Icon, Loading, Page, PageHeader, PathInput, Table, TextInput, useUi } from '@/components/ui'
 import { useLoad } from '@/lib/hooks'
 import { formatBytes } from '@/lib/format'
@@ -8,7 +9,10 @@ import { formatBytes } from '@/lib/format'
 /** Launcher settings + game list for an external emulator system. */
 export function SystemPage({ room, system }: { room: string; system: string }) {
   const { toast } = useUi()
-  const systems = useLoad(() => call<SystemView[]>('systems_list'), [system])
+  const { offline } = useBackend()
+  const systems = useLoad(() => (offline ? Promise.resolve([]) : call<SystemView[]>('systems_list')), [system, offline])
+  const [found, setFound] = useState<DetectCandidate[] | null>(null)
+  const [finding, setFinding] = useState(false)
   const sys = systems.data?.find((s) => s.id === system)
   const [exe, setExe] = useState('')
   const [dir, setDir] = useState('')
@@ -44,6 +48,14 @@ export function SystemPage({ room, system }: { room: string; system: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sys?.game_dir, system])
 
+  if (offline) {
+    return (
+      <Page>
+        <PageHeader title="Emulator setup" actions={<Button icon="back" onClick={() => (window.location.hash = `#/room/${room}`)}>Back</Button>} />
+        <Banner tone="info" title="Needs the TiLT app">Setting up an emulator and listing games needs the TiLT desktop app (or <code>tilt-local</code>) on your computer.</Banner>
+      </Page>
+    )
+  }
   if (systems.loading) return <Loading />
   if (!sys) return <Page><ErrorNote error={`Unknown system “${system}”.`} /></Page>
 
@@ -64,6 +76,18 @@ export function SystemPage({ room, system }: { room: string; system: string }) {
       toast(errorMessage(e), 'error')
     }
   }
+  const detect = async () => {
+    setFinding(true)
+    try {
+      setFound(await call<DetectCandidate[]>('system_detect', { id: system }))
+    } catch (e) {
+      setFound(null)
+      toast(errorMessage(e), 'error')
+    } finally {
+      setFinding(false)
+    }
+  }
+  const canDetect = ['mame', 'vpx', 'pinmame', 'ps2', 'intellivision'].includes(system)
   const launch = async (g?: GameEntry) => {
     try {
       await call('system_launch', { id: system, game: g?.path })
@@ -101,9 +125,44 @@ export function SystemPage({ room, system }: { room: string; system: string }) {
       <Banner tone="info" title="How this works">
         TiLT does not emulate this system itself. It starts the emulator you install, passing the game you pick. {sys.setup_hint}
       </Banner>
+      {(system === 'mame' || system === 'pinmame' || system === 'vpx') && (
+        <Banner tone="info" title="Pinball ROM sets">
+          Machines need their ROM sets, which TiLT does not include. <a href="#/room/pinball/roms">Import yours in the Pinball ROM library</a>
+          {system === 'mame' && <>; MAME plays straight from that library unless you choose another folder below.</>}
+        </Banner>
+      )}
       <Card title="Emulator settings">
         <div className="stack">
           <PathInput label="Emulator program" hint="The executable you installed." value={exe} onChange={setExe} />
+          {canDetect && (
+            <div className="stack-sm" data-testid="detect">
+              <div>
+                <Button icon="search" onClick={() => void detect()} disabled={finding}>
+                  {finding ? 'Looking…' : 'Find it on this computer'}
+                </Button>
+              </div>
+              {found && found.length === 0 && (
+                <p className="small muted" data-testid="detect-none">
+                  Nothing found in the program path or the usual install folders. Install it, or choose the program yourself above.
+                </p>
+              )}
+              {found && found.length > 0 && (
+                <ul className="stack-sm" style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }} aria-label="Programs found">
+                  {found.map((c) => (
+                    <li key={c.path} className="row" data-testid="detect-found">
+                      <span className="mono small truncate" title={c.path}>
+                        {c.path}
+                      </span>
+                      {c.version ? <Badge tone="success">{c.version}</Badge> : <Badge>Found by name, not run</Badge>}
+                      <Button size="sm" onClick={() => setExe(c.path)}>
+                        Use this
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           <PathInput label="Game folder" hint="Folders up to two levels deep are scanned." value={dir} onChange={setDir} directory />
           <div className="grid grid-2">
             <div className="field">

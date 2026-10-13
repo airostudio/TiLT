@@ -3,10 +3,11 @@ import { useRoute } from './router'
 import { useTheme } from './theme'
 import { BackendProvider, useBackend } from './backend'
 import { Banner, Button, Icon, Loading } from '@/components/ui'
-import { OfflinePreview } from './OfflinePreview'
+import { OfflineBanner, OfflinePreview } from './OfflinePreview'
 import { isTauri } from '@/api/client'
 import { RoomsHome } from '@/features/rooms/RoomsHome'
 import { RoomView } from '@/features/rooms/RoomView'
+import { PinballRoms } from '@/features/rooms/PinballRoms'
 import { SystemPage } from '@/features/rooms/SystemPage'
 
 const AmigaStudio = lazy(() => import('@/features/amiga/AmigaStudio'))
@@ -59,7 +60,9 @@ function TopBar({ parts }: { parts: string[] }) {
 
 function Routes({ parts }: { parts: string[] }) {
   const { offline } = useBackend()
-  if (offline && !isTauri()) return <main className="main" id="main"><OfflinePreview /></main>
+  const noBackend = offline && !isTauri()
+  // Amiga Studio is all backend; the Rooms can still be shown as a read-only preview.
+  if (noBackend && parts[0] === 'amiga') return <main className="main" id="main"><div style={{ padding: '16px 16px 0' }}><OfflineBanner /></div><OfflinePreview /></main>
   if (parts[0] === 'amiga') {
     return (
       <Suspense fallback={<Loading />}>
@@ -69,14 +72,30 @@ function Routes({ parts }: { parts: string[] }) {
   }
   return (
     <main className="main" id="main">
-      {offline && (
+      {offline && isTauri() && (
         <div style={{ padding: 16 }}>
           <Banner tone="error" title="The TiLT backend is not running">
             The interface could not reach its backend. In the desktop app this should never happen; in development start <code>tilt-local</code>.
           </Banner>
         </div>
       )}
-      {parts[0] === 'room' && parts[2] ? <SystemPage room={parts[1]} system={parts[2]} /> : parts[0] === 'room' ? <RoomView room={parts[1]} /> : <RoomsHome />}
+      {noBackend && (
+        <div style={{ padding: '16px 16px 0' }}>
+          <OfflineBanner />
+        </div>
+      )}
+      {parts[0] === 'room' && parts[1] === 'pinball' && parts[2] === 'roms' ? (
+        <PinballRoms />
+      ) : parts[0] === 'room' && parts[2] ? (
+        <SystemPage room={parts[1]} system={parts[2]} />
+      ) : parts[0] === 'room' ? (
+        <RoomView room={parts[1]} />
+      ) : (
+        <>
+          <RoomsHome />
+          {noBackend && <OfflinePreview />}
+        </>
+      )}
     </main>
   )
 }

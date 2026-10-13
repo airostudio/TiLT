@@ -14,14 +14,20 @@ declare `license = "GPL-3.0-or-later"`).
 | **Amiberry 8.4.0** | emulation engine | GPL-3.0 (contains WinUAE/UAE code, GPL) | shipped as a **separate executable** in `engine/`, started as a child process; no linking | Ship the licence text and notices; offer the **complete corresponding source** for the exact version we ship (link to the tagged release source and keep a mirror/ source archive for at least three years from last distribution); if we patch Amiberry (option C in ADR-0001) publish the patched source under GPL-3.0 |
 | **xdms-rs 0.2** | DMS decoding | MIT OR Apache-2.0 (clean-room Rust port of the public-domain xDMS) | compiled into the app | Include licence text in third-party notices |
 | Rust crates (`serde`, `rusqlite` + bundled SQLite (public domain), `sha2`, `fs4`, `same-file`, `getrandom`, `thiserror`, `tiny_http`, `base64`) | core/service | MIT / Apache-2.0 / public domain | compiled in | Third-party notices (generated in CI with `cargo about`/`cargo deny`) |
+| `zip` 2 (no compression features) | reading pinball ROM zip file lists | MIT | compiled in | notices |
 | **Tauri 2**, `tauri-plugin-dialog` | desktop shell | MIT OR Apache-2.0 | compiled in | notices |
 | React, Vite toolchain | UI | MIT | bundled JS | notices (CI collects) |
 | Windows WebView2 runtime | web view | Microsoft redistributable | installed by the NSIS bootstrapper if missing | follow Microsoft's terms |
 | **AROS ROM** (optional, from the Amiberry package) | open-source test ROM | AROS Public License | **not** bundled by us; used only in tests via an environment variable | none for us |
 
-Because TiLT and Amiberry are both GPL-3.0(-or-later) there is no licence conflict even if a future
-integration (ADR option D) loads the libretro core in-process: the combined work would be distributed
-under GPL-3.0.
+Because TiLT and Amiberry are both GPL-3.0(-or-later) there is no licence conflict that the in-process
+libretro mode (ADR-0001, option D, now implemented in `crates/amiga-retro`) loads the Amiberry libretro
+core into the Amiga Studio process: the combined work is distributed under GPL-3.0-or-later, and the
+corresponding source offer must cover Amiberry as well as TiLT (the installer's notices file lists both).
+`amiga-retro` uses none of the libretro.h header text: the C structures and constants were re-declared in
+Rust from the public API and checked against the header shipped with the Amiberry source. The libretro API
+header is MIT-licensed in any case. The core itself is **not** bundled in the repository; it is a release
+asset of Amiberry that users or the installer fetch, checked against Amiberry's published `SHA256SUMS`.
 
 ## What must never be bundled
 

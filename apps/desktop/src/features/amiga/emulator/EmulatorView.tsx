@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { call, errorMessage } from '@/api/client'
-import type { Issue, MachineProfile, RomRecord } from '@/api/types'
+import type { Issue, MachineProfile, RomRecord, RunMode } from '@/api/types'
 import { Badge, Banner, Button, Card, Icon, Loading, Page, PageHeader, Select, useUi } from '@/components/ui'
 import { useBackend } from '@/app/backend'
 import { useLoad, useLocalStorage } from '@/lib/hooks'
@@ -30,13 +30,26 @@ function CheckRow({ state, children, testid }: { state: CheckState; children: Re
 /** Amiberry 8.4.0 is the oldest build the generated configuration was validated against. */
 const olderThanTested = (v: [number, number, number] | null): boolean => !!v && (v[0] < 8 || (v[0] === 8 && v[1] < 4))
 
-function Readiness({ profile, roms, engine, issues, checked }: { profile: MachineProfile; roms: RomRecord[]; engine: EngineState; issues: Issue[]; checked: boolean }) {
+function Readiness({ profile, roms, engine, issues, checked, mode, embeddedCore }: { profile: MachineProfile; roms: RomRecord[]; engine: EngineState; issues: Issue[]; checked: boolean; mode: RunMode; embeddedCore: string | null }) {
   const rom = roms.find((r) => r.id === profile.rom_id)
   const errors = errorsOf(issues)
   const warnings = warningsOf(issues).filter((i) => i.field !== 'rom_id')
   return (
     <ul className="check-list" aria-label="Readiness checks" data-testid="readiness">
-      {engine.loading ? (
+      {mode === 'embedded' ? (
+        embeddedCore ? (
+          <CheckRow state="ok" testid="check-engine">
+            Emulator core found: it will run this machine inside TiLT.
+            <div className="small muted" style={{ overflowWrap: 'anywhere' }}>
+              {embeddedCore}
+            </div>
+          </CheckRow>
+        ) : (
+          <CheckRow state="fail" testid="check-engine">
+            The Amiberry libretro core was not found. <a href="#/amiga/settings">Open Settings</a> to set its location, or choose the emulator's own window.
+          </CheckRow>
+        )
+      ) : engine.loading ? (
         <CheckRow state="info">Looking for the emulator engine…</CheckRow>
       ) : engine.info ? (
         <CheckRow state={olderThanTested(engine.info.version) ? 'warn' : 'ok'} testid="check-engine">
@@ -121,8 +134,11 @@ function StopNotice({ stop, onDismiss }: { stop: StopResult; onDismiss: () => vo
 }
 
 function NotRunning({ engine, lastStop, onDismissStop }: { engine: EngineState; lastStop: StopResult | null; onDismissStop: () => void }) {
-  const { refreshSession } = useBackend()
+  const { refreshSession, info } = useBackend()
   const { toast } = useUi()
+  const embeddedCore = info?.embedded_core ?? null
+  const [savedMode, setMode] = useLocalStorage<RunMode>('amiga.emulator.mode', info?.run_mode ?? 'process')
+  const mode: RunMode = savedMode === 'embedded' && embeddedCore ? 'embedded' : 'process'
   const profiles = useLoad(() => call<MachineProfile[]>('profile_list'), [])
   const roms = useLoad(() => call<RomRecord[]>('rom_list'), [])
   const [chosen, setChosen] = useLocalStorage('amiga.emulator.machine', '')
@@ -142,7 +158,7 @@ function NotRunning({ engine, lastStop, onDismissStop }: { engine: EngineState; 
     setStarting(true)
     setFailure(null)
     try {
-      const r = await call<{ started: boolean; warnings: string[] }>('session_start', { profile_id: profile.id })
+      const r = await call<{ started: boolean; warnings: string[] }>('session_start', { profile_id: profile.id, mode })
       if (r.warnings.length) toast(`${profile.name} started with ${r.warnings.length} notice${r.warnings.length === 1 ? '' : 's'}.`, 'info')
       await refreshSession()
     } catch (e) {
@@ -204,7 +220,13 @@ function NotRunning({ engine, lastStop, onDismissStop }: { engine: EngineState; 
                   {MODEL_LABEL[profile.model]} · {cpuText(profile)} · {memoryText(profile)} ·{' '}
                   <a href={`#/amiga/machines/${profile.id}`}>Edit this machine</a>
                 </div>
-                <Readiness profile={profile} roms={roms.data ?? []} engine={engine} issues={issues} checked={current} />
+                {embeddedCore && (
+                  <Select label="Where should it run?" value={mode} onChange={(e) => setMode(e.target.value as RunMode)} data-testid="mode-select" hint="Inside TiLT: the screen, keyboard and mouse are in this window and every control works on every system, but there is no sound yet. In its own window: the full emulator, with sound.">
+                    <option value="process">In the emulator's own window</option>
+                    <option value="embedded">Inside TiLT</option>
+                  </Select>
+                )}
+                <Readiness profile={profile} roms={roms.data ?? []} engine={engine} issues={issues} checked={current} mode={mode} embeddedCore={embeddedCore} />
                 <div className="row">
                   <Button variant="primary" icon="play" disabled={starting || blocked || !current} onClick={() => void start()} data-testid="start-machine">
                     {starting ? 'Starting…' : `Start ${profile.name}`}

@@ -56,6 +56,7 @@ const status = (over: Partial<SessionStatus>): SessionStatus => ({
   pid: null,
   uptime_s: 0,
   runtime_control: true,
+  mode: null,
   paused: null,
   warnings: [],
   log_path: null,
