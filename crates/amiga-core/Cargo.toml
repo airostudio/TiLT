@@ -1,0 +1,26 @@
+[package]
+name = "amiga-core"
+description = "Amiga Studio core: ROM/ADF/DMS/HDF analysis, managed media storage, machine profiles and emulator control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+sha2 = "0.10"
+rusqlite = { version = "0.32", features = ["bundled"] }
+xdms = { version = "0.2", default-features = false, features = ["std"] }
+same-file = "1"
+fs4 = { version = "0.13", features = ["sync"] }
+getrandom = "0.3"
+
+[dev-dependencies]
+tempfile = "3"
+png = "0.17"
+
+[features]
+# Exposes synthetic ROM/HDF/DMS builders so other crates' tests need no proprietary media.
+test-support = []

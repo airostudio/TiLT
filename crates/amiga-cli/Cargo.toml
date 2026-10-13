@@ -1,0 +1,16 @@
+[package]
+name = "amiga-cli"
+description = "Command line front end for amiga-core (diagnostics, scripting, CI smoke tests)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "amiga-studio-cli"
+path = "src/main.rs"
+
+[dependencies]
+amiga-core = { path = "../amiga-core" }
+serde = "1"
+serde_json = "1"
