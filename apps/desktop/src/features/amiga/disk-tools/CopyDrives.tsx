@@ -7,7 +7,7 @@ import { useInterval, useLoad } from '@/lib/hooks'
 import { basename } from '@/lib/format'
 import { friendly } from '../hard-drives/helpers'
 import { isCancelled, useJob } from '../hard-drives/useJob'
-import { ReportCard, StepTitle } from './parts'
+import { ReportCard, ScrollTo, StepTitle } from './parts'
 import './disk-tools.css'
 
 const driveName = (d: DriveView): string => d.media_name ?? (d.path ? basename(d.path) : '')
@@ -158,11 +158,17 @@ export function CopyDrives({ active }: { active: boolean }) {
       </Card>
 
       {error && (
-        <Banner tone="error" title="The disk was not copied">
-          {error}
-        </Banner>
+        <ScrollTo>
+          <Banner tone="error" title="The disk was not copied">
+            {error}
+          </Banner>
+        </ScrollTo>
       )}
-      {report && <ReportCard report={report} media={media.data ?? []} />}
+      {report && (
+        <ScrollTo>
+          <ReportCard report={report} media={media.data ?? []} />
+        </ScrollTo>
+      )}
     </div>
   )
 }

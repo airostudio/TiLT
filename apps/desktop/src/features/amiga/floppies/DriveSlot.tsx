@@ -94,7 +94,7 @@ export function DriveSlot({ slot, mode, busy, onInsert, onEject, onProtect, onWo
               {slot.file ?? 'unknown'}
             </dd>
             <dt>Format</dt>
-            <dd className="truncate" title={slot.media ? formatSummary(slot.media) : undefined}>
+            <dd title={slot.media ? formatSummary(slot.media) : undefined}>
               {slot.media ? `${formatSummary(slot.media)} · ${formatBytes(slot.media.size)}` : 'unknown'}
             </dd>
             <dt>Protection</dt>

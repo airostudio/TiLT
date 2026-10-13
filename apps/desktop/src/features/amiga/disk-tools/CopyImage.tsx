@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format'
 import { useLoad } from '@/lib/hooks'
 import { friendly, isAbsolutePath } from '../hard-drives/helpers'
 import { isCancelled, useJob } from '../hard-drives/useJob'
-import { Choice, ReportCard, STATUS, StepTitle, describeEndpoint, opLabel } from './parts'
+import { Choice, ReportCard, ScrollTo, STATUS, StepTitle, describeEndpoint, opLabel } from './parts'
 import './disk-tools.css'
 
 type SourceMode = 'library' | 'file'
@@ -185,11 +185,17 @@ export function CopyImage() {
       </Card>
 
       {error && (
-        <Banner tone="error" title="The disk was not copied">
-          {error}
-        </Banner>
+        <ScrollTo>
+          <Banner tone="error" title="The disk was not copied">
+            {error}
+          </Banner>
+        </ScrollTo>
       )}
-      {report && <ReportCard report={report} media={media.data ?? []} />}
+      {report && (
+        <ScrollTo>
+          <ReportCard report={report} media={media.data ?? []} />
+        </ScrollTo>
+      )}
 
       <Card title="Recent copies" data-testid="history">
         {history.data && history.data.length === 0 ? (

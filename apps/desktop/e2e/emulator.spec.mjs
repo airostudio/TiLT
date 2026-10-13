@@ -255,6 +255,12 @@ withEngine('emulator: live session, every control reaches the engine, power off 
   const rec = await api('sessions_recent')
   expect(rec[0].outcome === 'clean', `session recorded as clean: ${rec[0].outcome}`)
   await shot('emulator-after-poweroff')
+  // the same session shows up in Help / Diagnostics with its outcome
+  await page.click('[data-testid=nav-help]')
+  await page.click('role=tab[name="Diagnostics"]')
+  await page.waitForSelector('[data-testid=session-row]')
+  const srow = await page.textContent('[data-testid=session-row]')
+  expect(srow.includes('Classic Amiga 500') && srow.includes('Clean'), `recent sessions lists it as clean: ${srow}`)
 })
 
 withEngine('emulator: Start notes are listed while running; preview polling stops when leaving the screen', async ({ page, app, api, dir }) => {

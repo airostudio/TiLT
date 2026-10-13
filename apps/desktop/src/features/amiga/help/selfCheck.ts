@@ -42,7 +42,7 @@ export async function runSelfCheck(): Promise<CheckResult[]> {
   // --- emulator engine ---
   const eng = await attempt<EngineInfo>('engine_info')
   if (eng.err) {
-    add('engine', 'Emulator engine', 'fail', `Amiberry could not be used: ${eng.err.message} Install it, then set its location in Settings.`)
+    add('engine', 'Emulator engine', 'fail', `The emulator engine could not be used. ${eng.err.message}`)
     add('control', 'Live control of the emulator', 'warn', 'Unknown, because the emulator engine was not found.')
   } else {
     const e = eng.ok

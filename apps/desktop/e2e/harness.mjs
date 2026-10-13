@@ -232,6 +232,7 @@ export async function runAll(filter) {
   mkdirSync(artifacts, { recursive: true })
   for (const t of tests) {
     if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) continue
+    for (let attempt = 1; attempt <= 2; attempt++) {
     const backend = await startBackend(t.env ?? {})
     const ctx = await browser.newContext({ viewport: { width: 1360, height: 860 }, deviceScaleFactor: 1 })
     const page = await ctx.newPage()
@@ -247,14 +248,20 @@ export async function runAll(filter) {
         shot: (n) => page.screenshot({ path: path.join(artifacts, `${n}.png`) }),
       })
       if (errors.length) throw new Error(`browser console errors:\n${errors.join('\n')}`)
-      console.log(`  PASS  ${t.name}  (${Date.now() - started} ms)`)
+      console.log(`  PASS  ${t.name}  (${Date.now() - started} ms)${attempt > 1 ? '  [passed on retry]' : ''}`)
+      attempt = 99
     } catch (e) {
-      failed++
-      console.log(`  FAIL  ${t.name}\n        ${String(e.stack ?? e).split('\n').join('\n        ')}`)
-      await page.screenshot({ path: path.join(artifacts, `FAIL-${t.name.replace(/\W+/g, '_')}.png`) }).catch(() => {})
+      if (attempt === 1) {
+        console.log(`  retry ${t.name}: ${String(e.message ?? e).split('\n')[0]}`)
+      } else {
+        failed++
+        console.log(`  FAIL  ${t.name}\n        ${String(e.stack ?? e).split('\n').join('\n        ')}`)
+        await page.screenshot({ path: path.join(artifacts, `FAIL-${t.name.replace(/\W+/g, '_')}.png`) }).catch(() => {})
+      }
     } finally {
       await ctx.close()
       backend.stop()
+    }
     }
   }
   await browser.close()

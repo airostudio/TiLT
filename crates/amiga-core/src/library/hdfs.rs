@@ -427,23 +427,29 @@ impl Library {
             })
             .unwrap(),
         )?;
-        std::fs::rename(&hdf.working_path, &saved_old)?;
+        // A missing working copy (deleted behind our back) simply has nothing to preserve.
+        let had_working = hdf.working_path.is_file();
+        if had_working {
+            std::fs::rename(&hdf.working_path, &saved_old)?;
+        }
         std::fs::rename(&staged, &hdf.working_path)?;
-        let (osha, osize) = crate::hash::sha256_file(&saved_old, cancel, None).unwrap_or_default();
-        fsutil::set_readonly(&saved_old, true)?;
-        self.db().execute(
-            "INSERT INTO snapshots(id,hdf_id,kind,note,path,size,sha256,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
-            params![
-                fsutil::random_id(),
-                hdf_id,
-                SnapshotKind::PreRestore.as_str(),
-                format!("Before restoring snapshot {snapshot_id}"),
-                saved_old.to_string_lossy(),
-                osize as i64,
-                osha,
-                unix_now()
-            ],
-        )?;
+        if had_working {
+            let (osha, osize) = crate::hash::sha256_file(&saved_old, cancel, None).unwrap_or_default();
+            fsutil::set_readonly(&saved_old, true)?;
+            self.db().execute(
+                "INSERT INTO snapshots(id,hdf_id,kind,note,path,size,sha256,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+                params![
+                    fsutil::random_id(),
+                    hdf_id,
+                    SnapshotKind::PreRestore.as_str(),
+                    format!("Before restoring snapshot {snapshot_id}"),
+                    saved_old.to_string_lossy(),
+                    osize as i64,
+                    osha,
+                    unix_now()
+                ],
+            )?;
+        }
         self.db().execute("UPDATE hdfs SET dirty=0, unclean=0 WHERE id=?1", [hdf_id])?;
         self.journal_end(&jid)?;
         drop(lock);
@@ -793,6 +799,20 @@ mod tests {
         assert_ne!(sha(&pre[0].path), good);
         // the journal is clear
         assert_eq!(lib.recover().unwrap().operations_rolled_forward + lib.recover().unwrap().operations_rolled_back, 0);
+    }
+
+    #[test]
+    fn restore_works_when_the_working_copy_is_missing() {
+        let (d, lib) = test_library();
+        let rec =
+            lib.import_hdf(&make_src(d.path()), "W", HdfImportOptions::default(), &CancelToken::new(), None).unwrap();
+        let good = sha(&rec.working_path);
+        let snap = lib.backup_hdf(&rec.id, SnapshotKind::Backup, "", &CancelToken::new(), None).unwrap();
+        std::fs::remove_file(&rec.working_path).unwrap();
+        assert!(lib.get_hdf(&rec.id).unwrap().working_missing);
+        lib.restore_hdf(&rec.id, &snap.id, &CancelToken::new(), None).unwrap();
+        assert_eq!(sha(&rec.working_path), good);
+        assert!(!lib.get_hdf(&rec.id).unwrap().working_missing);
     }
 
     #[test]

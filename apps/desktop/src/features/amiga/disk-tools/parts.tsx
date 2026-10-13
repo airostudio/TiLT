@@ -1,8 +1,17 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { CopyReport, MediaRecord, OperationRecord } from '@/api/types'
 import { Badge, Banner, Card, Icon, KV } from '@/components/ui'
 import { basename, formatBytes } from '@/lib/format'
 import './disk-tools.css'
+
+/** Brings a freshly shown result or error into view. */
+export function ScrollTo({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    ref.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+  }, [])
+  return <div ref={ref}>{children}</div>
+}
 
 export function StepTitle({ n, children }: { n: number; children: ReactNode }) {
   return (
