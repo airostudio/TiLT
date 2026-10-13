@@ -172,6 +172,7 @@ test('machines: Kickstart details, AGA machine with a 1.3 ROM is an error', asyn
 
 test('machines: honest empty state when no Kickstart ROM is imported', async ({ page, app }) => {
   await openEditor(page, app, 'Classic Amiga 500')
+  await page.waitForSelector('#sec-kickstart >> text=No Kickstart ROMs imported yet')
   const t = await page.textContent('#sec-kickstart')
   expect(t.includes('No Kickstart ROMs imported yet'), 'empty state')
   expect(await page.isVisible('#sec-kickstart a[href="#/amiga/roms"]'), 'links to the ROM Library')

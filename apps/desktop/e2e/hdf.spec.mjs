@@ -311,25 +311,24 @@ test('hdf: removing from the library keeps the original and cleans up the copies
   expect(existsSync(orig) && sha(orig) === before, 'original untouched')
 })
 
-test('hdf: working copy missing and unclean shutdown are shown honestly', async ({ page, app, api, dir, shot }) => {
+test('hdf: a missing working copy is shown honestly and can be rebuilt from a backup', async ({ page, app, api, dir, shot }) => {
   const orig = writeFile(dir, 'work.hdf', fixtures.hdf())
   await importHdf(api, orig, 'Work')
   const rec = (await api('hdf_list'))[0]
   await job(api, 'hdf_backup', { id: rec.id, kind: 'backup' })
+  const before = sha(rec.working_path)
   const { unlinkSync } = await import('node:fs')
   unlinkSync(rec.working_path)
   await open(page, app)
   await page.waitForSelector('text=Working copy missing')
   expect(await page.getByRole('button', { name: 'Back up now' }).isDisabled(), 'cannot back up a missing copy')
   await shot('hdf-missing')
-  // Restoring over a missing working file is refused by the current backend; the UI says so readably
+  // Restoring a backup over a missing working file now works: the disk is rebuilt from the backup
   await page.getByRole('tab', { name: /Backups and snapshots/ }).click()
   await page.locator('tr:has-text("Backup") >> button:has-text("Restore")').first().click()
   await page.getByRole('button', { name: 'Restore this version' }).click()
-  await page.waitForSelector('text=That did not work')
-  const err = await page.textContent('[role=alert]')
-  expect(err.includes('import your original file again'), 'failure is explained with the way out')
-  expect(!existsSync(rec.working_path) && (await api('hdf_list'))[0].working_missing, 'nothing half-done')
+  for (let i = 0; i < 100 && (await api('hdf_list'))[0].working_missing; i++) await new Promise((r) => setTimeout(r, 100))
+  expect(existsSync(rec.working_path) && sha(rec.working_path) === before, 'the disk was rebuilt from the backup, byte for byte')
   // removal still works and frees the library entry; the original stays
   await page.getByRole('button', { name: 'Remove from library…' }).click()
   await page.getByRole('button', { name: 'Remove from library', exact: true }).click()

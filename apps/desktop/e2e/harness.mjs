@@ -17,7 +17,7 @@ const repo = path.resolve(desktopDir, '../..')
 const SERVER = process.env.AMIGA_DEVSERVER ?? path.join(repo, 'target/debug/amiga-devserver')
 
 export const tests = []
-export const test = (name, fn) => tests.push({ name, fn })
+export const test = (name, fn, opts = {}) => tests.push({ name, fn, env: opts.env })
 
 export function expect(cond, msg) {
   if (!cond) throw new Error(msg ?? 'expectation failed')

@@ -22,7 +22,7 @@
 
 | Path | Purpose |
 |---|---|
-| `crates/amiga-core` | All Amiga logic. Pure Rust, no UI, no Tauri. 127 unit tests + env-gated real-engine tests. |
+| `crates/amiga-core` | All Amiga logic. Pure Rust, no UI, no Tauri. 145 tests + env-gated real-engine tests. |
 | `crates/amiga-service` | One entry point `Service::dispatch(cmd, args)`; background jobs; session supervisor; Rooms/launcher registry. |
 | `crates/amiga-cli` | `amiga-studio-cli`: inspect ROM/ADF/DMS/HDF, probe the engine, generate the engine matrix. |
 | `crates/amiga-devserver` | Dev/CI only: HTTP bridge so the real UI can be tested in a browser against the real backend. Never shipped. |

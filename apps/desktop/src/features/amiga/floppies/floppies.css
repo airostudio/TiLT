@@ -37,6 +37,8 @@
   font-size: var(--fs-lg);
 }
 .fd-led {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 6px;

@@ -179,7 +179,8 @@ export function DisksTab({ media, reload }: { media: MediaRecord[]; reload: () =
               Try a different search word, or show all disks.
             </Empty>
           ) : (
-            <Table head={['Disk', 'Size', <span key="h" className="dl-hide-narrow">Fingerprint</span>, 'Status', <span key="u" className="dl-hide-narrow">Last used</span>, <span key="a" className="sr-only">Actions</span>]} caption="Disks in your library">
+            <div className="dl-table">
+            <Table head={['Disk', 'Size', 'Fingerprint', 'Status', 'Last used', <span key="a" className="sr-only">Actions</span>]} caption="Disks in your library">
               {shown.map((d) => (
                 <tr key={d.id} data-testid="disk-row" data-name={d.name}>
                   <td>
@@ -187,18 +188,18 @@ export function DisksTab({ media, reload }: { media: MediaRecord[]; reload: () =
                       <Icon name={d.kind === 'dms' ? 'box' : 'floppy'} size={16} />
                       <span className="truncate">{d.name}</span>
                     </button>
-                    <div className="muted xs dl-summary">{formatSummary(d)}</div>
+                    <div className="muted xs dl-summary truncate" title={formatSummary(d)}>{formatSummary(d)}</div>
                   </td>
                   <td className="muted" style={{ whiteSpace: 'nowrap' }}>
                     {formatBytes(d.size)}
                   </td>
-                  <td className="dl-hide-narrow">
+                  <td>
                     <code title={d.sha256}>{shortHash(d.sha256)}</code>
                   </td>
                   <td>
                     <DiskBadges disk={d} />
                   </td>
-                  <td className="muted dl-hide-narrow" style={{ whiteSpace: 'nowrap' }}>
+                  <td className="muted" style={{ whiteSpace: 'nowrap' }}>
                     {d.last_used ? formatDate(d.last_used) : 'Never'}
                   </td>
                   <td>
@@ -223,6 +224,7 @@ export function DisksTab({ media, reload }: { media: MediaRecord[]; reload: () =
                 </tr>
               ))}
             </Table>
+            </div>
           )}
           <Banner tone="info">
             <strong>Untouched originals</strong> are stored read-only and never change. To save games or install programs, make a <strong>working copy</strong> and use that in a drive.

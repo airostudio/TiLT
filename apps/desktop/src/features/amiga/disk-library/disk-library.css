@@ -64,6 +64,15 @@
 }
 .dl-summary {
   margin-top: 2px;
+  max-width: 340px;
+}
+@media (max-width: 1000px) {
+  .dl-table :is(th, td):nth-child(2) {
+    display: none;
+  }
+  .dl-summary {
+    max-width: 200px;
+  }
 }
 .dl-results {
   list-style: none;
@@ -96,7 +105,7 @@
   min-width: 0;
 }
 @media (max-width: 1180px) {
-  .dl-hide-narrow {
+  .dl-table :is(th, td):is(:nth-child(3), :nth-child(5)) {
     display: none;
   }
   .dl-results li {

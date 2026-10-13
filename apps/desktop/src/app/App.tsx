@@ -3,6 +3,8 @@ import { useRoute } from './router'
 import { useTheme } from './theme'
 import { BackendProvider, useBackend } from './backend'
 import { Banner, Button, Icon, Loading } from '@/components/ui'
+import { OfflinePreview } from './OfflinePreview'
+import { isTauri } from '@/api/client'
 import { RoomsHome } from '@/features/rooms/RoomsHome'
 import { RoomView } from '@/features/rooms/RoomView'
 import { SystemPage } from '@/features/rooms/SystemPage'
@@ -57,6 +59,7 @@ function TopBar({ parts }: { parts: string[] }) {
 
 function Routes({ parts }: { parts: string[] }) {
   const { offline } = useBackend()
+  if (offline && !isTauri()) return <main className="main" id="main"><OfflinePreview /></main>
   if (parts[0] === 'amiga') {
     return (
       <Suspense fallback={<Loading />}>

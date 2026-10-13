@@ -35,7 +35,7 @@ const slot = (u) => `[data-testid=slot-${u}]`
 async function insertVia(page, unit, diskName) {
   await page.click(`[aria-label="Insert a floppy disk into DF${unit}:"], [aria-label="Replace the disk in DF${unit}:"]`)
   await page.fill('.modal input.input >> nth=0', diskName)
-  await page.check(`.modal label:has-text("${diskName}") input`)
+  await page.check(`.modal label:has(.dk-name:text-is("${diskName}")) input`)
   await page.click('.modal .modal-actions button.primary')
   await page.waitForFunction(() => document.querySelectorAll('[role=dialog]').length === 0)
 }
