@@ -417,3 +417,48 @@ export interface GameEntry {
   plays: number
   last_played: number | null
 }
+
+// ---------- Pinball ROM library ----------
+export type RomStatus = 'good' | 'bad' | 'unknown_set' | 'not_checked'
+
+export interface RomVerification {
+  status: RomStatus
+  detail: string
+  checked_at: number
+  mame_version: string | null
+}
+
+export interface PinballRomSet {
+  name: string
+  path: string
+  size: number
+  sha256: string
+  entries: number
+  added_at: number
+  title: string | null
+  year: string | null
+  manufacturer: string | null
+  verification: RomVerification
+  missing: boolean
+}
+
+export interface PinballRoms {
+  sets: PinballRomSet[]
+  folder: string
+  /** The configured MAME program, if it exists. */
+  mame: string | null
+}
+
+export interface DetectCandidate {
+  path: string
+  version: string | null
+  /** The program answered a safe probe like the real emulator (only MAME can be probed). */
+  verified: boolean
+}
+
+export interface AutoConfigured {
+  id: string
+  name: string
+  path: string
+  version: string | null
+}

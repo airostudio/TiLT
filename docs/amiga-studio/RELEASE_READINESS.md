@@ -13,12 +13,12 @@ well-tested foundation exists; the items in "Blocked / not done" must be closed 
 
 | Suite | Result |
 |---|---|
-| `cargo test --workspace` (core + service + CLI + libretro host) | **152 passed**, 0 failed |
+| `cargo test --workspace` (core + service + CLI + libretro host) | **163 passed**, 0 failed |
 | Real-engine Rust e2e (`engine_e2e`, `engine_service`) with live Amiberry 8.4.0 + AROS | **2 passed** (≈14 s each) |
 | Embedded-mode Rust e2e (`core_e2e`, `embedded_service`) with the real **libretro core** 8.4.0 + AROS, no display | **2 passed** (pointer injection moves the guest pointer; pause, reset, state, DF0 swap, restart; service-level lifecycle twice in one process) |
 | Engine capability matrix (`amiga-studio-cli engine-matrix`) | **44 / 44 configurations accepted** with no engine corrections |
 | UI unit tests (vitest) | **37 passed** |
-| Browser e2e: real UI + real backend + Chromium | **80 passed**, 0 failed, 0 retries (includes **1 live-emulator test** and **1 embedded-machine test** (libretro core inside the app) driving real Amiberry/AROS through the UI, and 3 tests of the local-browser mode: token/Host/Origin protection, strict cookie, in-app file browser) |
+| Browser e2e: real UI + real backend + Chromium | **86 passed**, 0 failed, 0 retries (includes **1 live-emulator test**, **1 embedded-machine test** and **6 Pinball Arcade tests**, one of them against a real MAME 0.264 (libretro core inside the app) driving real Amiberry/AROS through the UI, and 3 tests of the local-browser mode: token/Host/Origin protection, strict cookie, in-app file browser) |
 | `cargo clippy -D warnings`, `cargo fmt --check`, `tsc`, `eslint --max-warnings 0` | clean |
 | `cargo deny check licenses bans sources` (both Cargo workspaces) | ok |
 | Tauri 2 shell: `cargo build --release` on Linux, launched under Xvfb, UI loaded data over the real IPC | works (`compatibility/evidence/desktop-shell-linux-webkitgtk.png`) |
@@ -26,6 +26,19 @@ well-tested foundation exists; the items in "Blocked / not done" must be closed 
 
 Evidence images: `compatibility/evidence/` (AROS boot logo, AROS Workbench on an A1200/AGA configuration, the TiLT UI
 running a live session, and `embedded-mode-inside-tilt-linux.png`: the machine drawn inside the TiLT window by the libretro core).
+
+## Pinball Arcade: what is real
+
+| Claim | Status |
+|---|---|
+| Works without Amiberry | ✅ verified with no Amiga engine installed (rooms, scan, launch). The Amiga and Pinball code paths share nothing. |
+| Shows something with no backend (static web page) | ✅ the Rooms render from a built-in preview catalogue, every action disabled and labelled "Preview"; deep links explain. A test fails if the catalogue drifts from the backend's. |
+| Finds MAME / Visual Pinball / PinMAME / PCSX2 / jzIntv | 🟡 by name in the program path and usual folders. **MAME is verified by running `mame -version`** (real MAME 0.264 found at `/usr/games`); the others are found by name and never run. Not run on Windows or macOS. |
+| Pinball ROM library | ✅ verified byte copies, structural zip checks, remove deletes only the library copy. **Whether a set is right is decided by MAME** (`-verifyroms`, `-listxml`), tested against real MAME 0.264: synthetic zips named after a real pinball machine (`bttf_a20`) are reported *wrong* with the real title "Back to the Future - The Pinball (2.0)", and an invented name is reported unknown. |
+| A **real** pinball ROM set verified as Good | ⛔ **not done**: no authentic ROM is available to this project. The "good" path is tested only with a stand-in MAME script. |
+| Playing a table | 🟡 launches whatever MAME/VPX/PinMAME you configure. `-play <table>` for Visual Pinball and PinMAME's arguments are **unverified** (the hints say so). Nothing was played here. |
+| TiLT's own pinball engine | ⛔ the C++ engine in this repository is a prototype with stubbed features (`AUDIT_REPORT.md`); it cannot play tables, and the "TiLT Pinball" card says so. |
+| PinMAME ROM set names with upper case or dashes | refused with advice to rename (MAME set names are lower case letters, digits, underscores). |
 
 ## Windows run-time control: what was attempted and what is true now
 

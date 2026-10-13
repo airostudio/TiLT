@@ -5,8 +5,10 @@
 //! matched in `dispatch` does not exist as far as the UI is concerned: the front
 //! end can never run arbitrary host commands, only these operations.
 
+mod detect;
 mod fsbrowse;
 mod jobs;
+mod pinball;
 mod session;
 mod systems;
 
@@ -209,6 +211,65 @@ impl Service {
             }
             "system_games" => j(self.systems.games(lib, s(a, "id")?)?),
             "system_favorite" => j(self.systems.toggle_favorite(lib, s(a, "id")?, s(a, "game")?)?),
+            "system_detect" => {
+                let id = s(a, "id")?;
+                if !detect::supported(id) {
+                    return Err(bad("TiLT does not know where to look for that emulator"));
+                }
+                j(detect::detect(id))
+            }
+            "systems_autoconfigure" => j(self.systems.autoconfigure(lib, s(a, "room")?)?),
+            "pinball_roms" => j(json!({
+                "sets": pinball::list(lib),
+                "folder": pinball::rom_dir(lib).display().to_string(),
+                "mame": self.systems.exe_of(lib, "mame"),
+            })),
+            "pinball_rom_import" => {
+                let ps = paths(a, "paths")?;
+                let overwrite = bo(a, "overwrite", false);
+                let lib = self.lib.clone();
+                let id = self.jobs.spawn("pinball_import", "Importing pinball ROM sets", move |ctx| {
+                    let res = pinball::import(&lib, &ps, overwrite);
+                    let n = res.len() as u64;
+                    ctx.progress(n, n);
+                    Ok(json!(res
+                        .into_iter()
+                        .map(|(p, r)| match r {
+                            Ok(set) => json!({"path": p.display().to_string(), "ok": set}),
+                            Err(e) => json!({"path": p.display().to_string(), "error": ErrorDto::from(&e)}),
+                        })
+                        .collect::<Vec<_>>()))
+                });
+                j(json!({ "job": id }))
+            }
+            "pinball_rom_verify" => {
+                let names: Vec<String> = match so(a, "name") {
+                    Some(n) => vec![n.to_string()],
+                    None => pinball::list(lib).into_iter().filter(|s| !s.missing).map(|s| s.name).collect(),
+                };
+                let mame = self.systems.exe_of(lib, "mame").map(PathBuf::from);
+                let lib = self.lib.clone();
+                let id = self.jobs.spawn("pinball_verify", "Checking ROM sets with MAME", move |ctx| {
+                    let total = names.len() as u64;
+                    let mut out = vec![];
+                    for (i, n) in names.iter().enumerate() {
+                        if ctx.cancel_token().is_cancelled() {
+                            break;
+                        }
+                        out.push(match pinball::verify(&lib, n, mame.as_deref()) {
+                            Ok(set) => json!({"name": n, "ok": set}),
+                            Err(e) => json!({"name": n, "error": ErrorDto::from(&e)}),
+                        });
+                        ctx.progress(i as u64 + 1, total);
+                    }
+                    Ok(json!(out))
+                });
+                j(json!({ "job": id }))
+            }
+            "pinball_rom_remove" => {
+                pinball::remove(lib, s(a, "name")?)?;
+                j(true)
+            }
             "system_launch" => j(self.systems.launch(lib, s(a, "id")?, so(a, "game"))?),
             "system_stop" => j(self.systems.stop(s(a, "id")?)),
 

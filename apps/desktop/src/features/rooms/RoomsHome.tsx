@@ -1,11 +1,8 @@
-import { call } from '@/api/client'
-import type { RoomView, SystemView } from '@/api/types'
 import { Icon, Loading, ErrorNote } from '@/components/ui'
-import { useLoad } from '@/lib/hooks'
+import { useCatalog } from './useCatalog'
 
 export function RoomsHome() {
-  const rooms = useLoad(() => call<RoomView[]>('rooms'))
-  const systems = useLoad(() => call<SystemView[]>('systems_list'))
+  const { rooms, systems } = useCatalog()
   return (
     <>
       <div className="hero">

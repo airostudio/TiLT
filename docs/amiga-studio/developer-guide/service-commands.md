@@ -101,6 +101,19 @@ refused for machines with hard disks (the core crashes restoring them). States a
 `session_*` control commands return `unsupported` on builds without a control channel (official
 Windows builds of Amiberry: see ADR-0001). The UI must then explain and fall back to "restart to apply".
 
+## Rooms, emulator detection and the pinball ROM library
+`rooms`, `systems_list`, `system_save {system}`, `system_delete`, `system_games {id}`, `system_favorite`, `system_launch {id, game?}`, `system_stop`.
+* `system_detect {id}` → `[{path, version, verified}]` for `mame vpx pinmame ps2 intellivision`: well-known program names in the
+  program path and the usual install folders (one folder level down). Only `mame -version` is ever run (`verified:true`); other
+  emulators open windows, so they are reported "found by name".
+* `systems_autoconfigure {room}` → `[{id,name,path,version}]` fills in **unconfigured** systems only; never overwrites a setting.
+* `pinball_roms` → `{sets[], folder, mame}`; `pinball_rom_import {paths[] (files or folders), overwrite?}` **job** → per-file
+  `{ok: RomSet}` or `{error}`; `pinball_rom_verify {name?}` **job** (all sets when `name` is omitted) asks the configured MAME;
+  `pinball_rom_remove {name}` deletes the library copy only.
+* A set is `good` only when MAME's `-verifyroms` said so; `bad`, `unknown_set` (MAME has no such machine) and `not_checked`
+  (no MAME) are the other states. Titles, years and makers come from `mame -listxml <set>`. The MAME system defaults to the
+  library folder as its game folder.
+
 ## Local web mode only
 `fs_list {path?}` → `{path, parent, home, roots, entries[{name,is_dir,size}], truncated}`: folder listing for the in-app file browser (names and sizes only).
 

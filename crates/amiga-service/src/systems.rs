@@ -119,13 +119,39 @@ pub fn builtin_catalog() -> Vec<SystemDef> {
             id: "tilt-pinball".into(),
             room: "pinball".into(),
             name: "TiLT Pinball".into(),
-            description: "Pinball tables for the TiLT engine (and compatible players). Choose the player program and your tables folder.".into(),
+            description: "Pinball tables for the TiLT engine (and compatible players). Choose the player program and your tables folder. The TiLT engine in this repository is still a prototype (see AUDIT_REPORT.md) and cannot play tables yet; use Visual Pinball or MAME below.".into(),
             kind: "external".into(),
             exe: None,
             args: vec!["{game}".into()],
             game_dir: None,
             extensions: ext(&["vpx", "vpt"]),
             setup_hint: "Point at the TiLT executable (or any compatible table player).".into(),
+            custom: false,
+        },
+        SystemDef {
+            id: "vpx".into(),
+            room: "pinball".into(),
+            name: "Visual Pinball X".into(),
+            description: "Launches Visual Pinball X (standalone) with a table from your tables folder. Tables that use PinMAME need the ROM sets from the Pinball ROMs library.".into(),
+            kind: "external".into(),
+            exe: None,
+            args: vec!["-play".into(), "{game}".into()],
+            game_dir: None,
+            extensions: ext(&["vpx"]),
+            setup_hint: "Install Visual Pinball X standalone (VPinballX_GL), then choose its program and your tables folder. The argument template (-play <table>) is the one documented for VPinballX; TiLT has not run it against your build, so check it if a table does not start.".into(),
+            custom: false,
+        },
+        SystemDef {
+            id: "pinmame".into(),
+            room: "pinball".into(),
+            name: "PinMAME".into(),
+            description: "Launches a command-line PinMAME with a ROM set from your ROM folder.".into(),
+            kind: "external".into(),
+            exe: None,
+            args: vec!["{game_name}".into()],
+            game_dir: None,
+            extensions: ext(&["zip"]),
+            setup_hint: "PinMAME builds differ in how they take a ROM name and folder. TiLT has not run any of them, so adjust the argument template to your build.".into(),
             custom: false,
         },
         SystemDef {
@@ -207,6 +233,13 @@ impl Systems {
                 b
             })
             .collect();
+        // MAME defaults to the pinball ROM library folder once something has been imported into it
+        let rom_dir = crate::pinball::rom_dir(lib);
+        for d in out.iter_mut().filter(|d| d.id == "mame" && d.game_dir.is_none()) {
+            if rom_dir.is_dir() {
+                d.game_dir = Some(rom_dir.display().to_string());
+            }
+        }
         let mut custom: Vec<SystemDef> = o.into_values().filter(|d| d.custom).collect();
         custom.sort_by_key(|a| a.name.to_lowercase());
         out.extend(custom);
@@ -224,6 +257,34 @@ impl Systems {
                 SystemView { running: running.contains_key(&d.id), configured, game_count, def: d }
             })
             .collect()
+    }
+
+    /// The configured program of a system, if it exists on disk.
+    pub fn exe_of(&self, lib: &Library, id: &str) -> Option<String> {
+        Self::definitions(lib).into_iter().find(|d| d.id == id).and_then(|d| d.exe).filter(|e| Path::new(e).is_file())
+    }
+
+    /// Fill in the program of every unconfigured, detectable system in `room` with the best installed
+    /// candidate. Existing settings are never changed. MAME is only accepted when it answered `-version`.
+    pub fn autoconfigure(&self, lib: &Library, room: &str) -> Result<Vec<serde_json::Value>> {
+        let mut found = vec![];
+        for d in Self::definitions(lib) {
+            if d.room != room || d.kind != "external" || !crate::detect::supported(&d.id) {
+                continue;
+            }
+            if d.exe.as_deref().is_some_and(|e| Path::new(e).is_file()) {
+                continue;
+            }
+            let best = crate::detect::detect(&d.id).into_iter().find(|c| c.verified || d.id != "mame");
+            if let Some(c) = best {
+                let mut nd = d.clone();
+                nd.exe = Some(c.path.clone());
+                if self.save(lib, nd).is_ok() {
+                    found.push(serde_json::json!({ "id": d.id, "name": d.name, "path": c.path, "version": c.version }));
+                }
+            }
+        }
+        Ok(found)
     }
 
     /// Save the user-editable parts of a system (or create a custom one).
@@ -432,6 +493,9 @@ mod tests {
             assert!(ids.contains(&(want.0.to_string(), want.1.to_string())), "{want:?}");
         }
         assert_eq!(rooms().len(), 2);
+        for id in ["vpx", "pinmame"] {
+            assert!(builtin_catalog().iter().any(|d| d.id == id && d.room == "pinball"), "{id}");
+        }
     }
 
     #[test]
@@ -510,6 +574,34 @@ mod tests {
         assert_eq!(s.games(&l, "intellivision").unwrap()[0].plays, 1);
         assert!(s.stop("intellivision"));
         assert!(!s.stop("intellivision"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn autoconfigure_fills_only_what_is_missing() {
+        use std::os::unix::fs::PermissionsExt;
+        let (d, l) = lib();
+        let bin = d.path().join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let script = |n: &str, body: &str| {
+            let p = bin.join(n);
+            std::fs::write(&p, body).unwrap();
+            std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+            p
+        };
+        let mame = script("mame", "#!/bin/sh\necho '0.1 (mame0001)'\n");
+        script("VPinballX_GL", "#!/bin/sh\n");
+        let found = crate::detect::detect_in("mame", std::slice::from_ref(&bin));
+        assert_eq!(found.len(), 1);
+        // the search path is process-wide, so exercise the save path directly with what was found
+        let s = Systems::default();
+        let mut def = Systems::definitions(&l).into_iter().find(|x| x.id == "mame").unwrap();
+        def.exe = Some(found[0].path.clone());
+        s.save(&l, def).unwrap();
+        assert_eq!(s.exe_of(&l, "mame").as_deref(), Some(mame.to_str().unwrap()));
+        // already configured systems are left alone
+        let again = s.autoconfigure(&l, "pinball").unwrap();
+        assert!(again.iter().all(|v| v["id"] != "mame"));
     }
 
     #[test]

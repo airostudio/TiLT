@@ -6,10 +6,12 @@
 | Lint/format | `cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings` | |
 | Real-engine end-to-end | `DISPLAY=:99 AMIBERRY_BIN=… AROS_ROM=… AROS_EXT=… cargo test -p amiga-core -p amiga-service --test engine_e2e --test engine_service -- --nocapture` | Linux/macOS Amiberry 8.4.0, a display (`xvfb-run`), the AROS ROMs that ship with Amiberry |
 | Embedded-mode (libretro core) end-to-end | `LIBRETRO_CORE=… AROS_ROM=… AROS_EXT=… cargo test -p amiga-retro -p amiga-service --test core_e2e --test embedded_service -- --nocapture` | the `amiberry-libretro-<os>-<arch>` release asset (check its SHA-256 against the release `SHA256SUMS`); **no display, no standalone Amiberry** |
+| Pinball ROM library against the real MAME | `MAME_BIN=/usr/games/mame cargo test -p amiga-service --test pinball_mame -- --nocapture` | any MAME 0.2xx (`apt install mame`); no ROMs: synthetic zips named after real machines must be reported *wrong* |
 | Engine capability matrix | `cargo run -p amiga-cli -- engine-matrix <amiberry>` | Amiberry |
 | UI types/lint/unit | `cd apps/desktop && npm run typecheck && npm run lint && npm test` | Node 22 |
 | Browser e2e (real backend + real UI) | `npm run build && cargo build -p tilt-local && node e2e/run.mjs [filter]` | Chromium (`PLAYWRIGHT_BROWSERS_PATH` or `CHROMIUM_PATH`) |
 | Live-emulator browser e2e | same, plus `AMIBERRY_BIN`, `AROS_ROM`, `AROS_EXT`, `DISPLAY` | as above |
+| Pinball browser e2e (`pinball.spec.mjs`) | `node e2e/run.mjs pinball` (add `MAME_BIN=…` for the real-MAME test) | stand-in MAME script and hand-built zips otherwise; also serves `dist/` statically to test the no-backend preview |
 | Embedded-machine browser e2e | same, plus `LIBRETRO_CORE`, `AROS_ROM`, `AROS_EXT` (`node e2e/run.mjs embedded`) | as above; no display |
 | Tauri shell | `cd apps/desktop/src-tauri && cargo check` | WebKitGTK dev packages (Linux) |
 | Proprietary-media guard | `python3 scripts/check-no-proprietary.py <dirs>` | |

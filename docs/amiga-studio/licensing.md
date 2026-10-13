@@ -14,6 +14,7 @@ declare `license = "GPL-3.0-or-later"`).
 | **Amiberry 8.4.0** | emulation engine | GPL-3.0 (contains WinUAE/UAE code, GPL) | shipped as a **separate executable** in `engine/`, started as a child process; no linking | Ship the licence text and notices; offer the **complete corresponding source** for the exact version we ship (link to the tagged release source and keep a mirror/ source archive for at least three years from last distribution); if we patch Amiberry (option C in ADR-0001) publish the patched source under GPL-3.0 |
 | **xdms-rs 0.2** | DMS decoding | MIT OR Apache-2.0 (clean-room Rust port of the public-domain xDMS) | compiled into the app | Include licence text in third-party notices |
 | Rust crates (`serde`, `rusqlite` + bundled SQLite (public domain), `sha2`, `fs4`, `same-file`, `getrandom`, `thiserror`, `tiny_http`, `base64`) | core/service | MIT / Apache-2.0 / public domain | compiled in | Third-party notices (generated in CI with `cargo about`/`cargo deny`) |
+| `zip` 2 (no compression features) | reading pinball ROM zip file lists | MIT | compiled in | notices |
 | **Tauri 2**, `tauri-plugin-dialog` | desktop shell | MIT OR Apache-2.0 | compiled in | notices |
 | React, Vite toolchain | UI | MIT | bundled JS | notices (CI collects) |
 | Windows WebView2 runtime | web view | Microsoft redistributable | installed by the NSIS bootstrapper if missing | follow Microsoft's terms |

@@ -64,6 +64,10 @@ jobs:
       - name: Real-engine end-to-end (AROS ROM, Xvfb)
         run: xvfb-run -a cargo test -p amiga-core -p amiga-service --test engine_e2e --test engine_service -- --nocapture
         env: { E2E_ARTIFACT_DIR: '${{ runner.temp }}/e2e-artifacts' }
+      - name: Pinball ROM library against the real MAME
+        run: |
+          sudo apt-get install -y -qq --no-install-recommends mame
+          MAME_BIN=/usr/games/mame cargo test -p amiga-service --test pinball_mame -- --nocapture
       - name: Embedded-mode (libretro core) end-to-end, no display needed
         run: cargo test -p amiga-retro -p amiga-service --test core_e2e --test embedded_service -- --nocapture
       - uses: actions/upload-artifact@v4
@@ -88,6 +92,11 @@ jobs:
       - run: cargo build -p tilt-local
         working-directory: .
       - run: npx playwright-core install --with-deps chromium
+      - name: Install MAME (for the pinball ROM library tests against the real MAME)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends mame
+          echo "MAME_BIN=/usr/games/mame" >> "$GITHUB_ENV"
       - name: Browser e2e
         run: node e2e/run.mjs
       - uses: actions/upload-artifact@v4
