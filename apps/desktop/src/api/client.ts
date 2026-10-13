@@ -35,7 +35,13 @@ async function rawCall(cmd: string, args: unknown): Promise<unknown> {
   } catch {
     throw new ApiError({ code: 'offline', message: 'The Amiga Studio backend is not reachable.' })
   }
-  const body = (await res.json()) as { ok?: unknown; error?: ErrorDto }
+  let body: { ok?: unknown; error?: ErrorDto }
+  try {
+    body = (await res.json()) as { ok?: unknown; error?: ErrorDto }
+  } catch {
+    // e.g. a static host answering 404 HTML: there is no backend behind this page
+    throw new ApiError({ code: 'offline', message: 'The Amiga Studio backend is not reachable.' })
+  }
   if (body.error) throw new ApiError(body.error)
   return body.ok
 }

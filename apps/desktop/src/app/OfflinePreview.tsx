@@ -4,6 +4,7 @@ const shots: { file: string; title: string; text: string }[] = [
   { file: 'rooms.png', title: 'Rooms', text: 'Home Arcade and Pinball Arcade, with launchers for your own emulators.' },
   { file: 'dashboard.png', title: 'Amiga Studio dashboard', text: 'Current machine, Kickstart, drives, storage and emulator status at a glance.' },
   { file: 'machines.png', title: 'My Amigas', text: 'A500 to A4000 profiles with live validation: impossible CPU/FPU/MMU/RAM combinations are rejected.' },
+  { file: 'emulator.png', title: 'Live emulator session', text: 'A real Amiberry session booting the open-source AROS ROM on an A1200 (AGA) configuration, controlled from the app.' },
   { file: 'harddrives.png', title: 'Hard Drives', text: 'Import your HDF safely: originals untouched, managed working copy, backups, snapshots, restore.' },
 ]
 
