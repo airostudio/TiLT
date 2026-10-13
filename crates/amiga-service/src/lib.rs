@@ -105,6 +105,45 @@ impl Service {
         }))
     }
 
+    /// The Amiberry libretro core used for embedded mode: the configured path, else a core that sits
+    /// next to the bundled engine / the located engine (release assets are named
+    /// `amiberry-libretro-<os>-<arch>.<ext>`).
+    pub fn retro_core(&self) -> Option<PathBuf> {
+        let ext = if cfg!(windows) {
+            "dll"
+        } else if cfg!(target_os = "macos") {
+            "dylib"
+        } else {
+            "so"
+        };
+        if let Ok(Some(p)) = self.lib.get_setting("libretro_core_path") {
+            let p = PathBuf::from(p);
+            if p.is_file() {
+                return Some(p);
+            }
+        }
+        let mut dirs: Vec<PathBuf> = self.bundled_dir.iter().cloned().collect();
+        if let Ok(e) = self.engine() {
+            dirs.extend(e.path.parent().map(Path::to_path_buf));
+        }
+        for d in dirs {
+            let Ok(rd) = std::fs::read_dir(&d) else { continue };
+            let mut found: Vec<PathBuf> = rd
+                .flatten()
+                .map(|e| e.path())
+                .filter(|p| {
+                    let n = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_ascii_lowercase();
+                    n.contains("libretro") && n.contains("amiberry") && n.ends_with(&format!(".{ext}"))
+                })
+                .collect();
+            found.sort();
+            if let Some(f) = found.into_iter().next() {
+                return Some(f);
+            }
+        }
+        None
+    }
+
     fn engine(&self) -> Result<EngineInfo> {
         let mut g = self.engine.lock().unwrap();
         if g.is_none() {
@@ -137,6 +176,8 @@ impl Service {
                     "storage_root": lib.layout.root.display().to_string(),
                     "engine": eng,
                     "runtime_control": amiga_core::ipc::runtime_control_supported(),
+                    "embedded_core": self.retro_core().map(|p| p.display().to_string()),
+                    "run_mode": lib.get_setting("run_mode").ok().flatten().unwrap_or_else(|| "process".into()),
                 }))
             }
             "storage_report" => j(lib.storage_report()?),
@@ -179,6 +220,23 @@ impl Service {
                 lib.set_setting("engine_path", &p.to_string_lossy())?;
                 *self.engine.lock().unwrap() = Some(info.clone());
                 j(info)
+            }
+
+            "embedded_set_core" => {
+                let p = abs(s(a, "path")?)?;
+                if !p.is_file() {
+                    return Err(Error::NotFound("that file does not exist".into()));
+                }
+                lib.set_setting("libretro_core_path", &p.to_string_lossy())?;
+                j(json!({ "embedded_core": self.retro_core().map(|p| p.display().to_string()) }))
+            }
+            "run_mode_set" => {
+                let m = s(a, "mode")?;
+                if m != "process" && m != "embedded" {
+                    return Err(bad("mode must be 'process' or 'embedded'"));
+                }
+                lib.set_setting("run_mode", m)?;
+                j(m)
             }
 
             // ---------- ROMs ----------
@@ -379,7 +437,7 @@ impl Service {
             "job_cancel" => j(self.jobs.cancel(s(a, "id")?)),
 
             // ---------- emulator session ----------
-            "session_start" => self.session_start(s(a, "profile_id")?),
+            "session_start" => self.session_start(s(a, "profile_id")?, so(a, "mode")),
             "session_stop" => self.session_stop(),
             "session_status" => j(session::status(&self.sessions.active, amiga_core::ipc::runtime_control_supported())),
             "session_control" => self.session_control(a),
@@ -390,19 +448,36 @@ impl Service {
                     a.get("unit").and_then(Value::as_u64).filter(|u| *u < 4).ok_or_else(|| bad("unit must be 0-3"))?
                         as u8;
                 self.with_session(|x| {
+                    if let Some(e) = x.session.embedded() {
+                        embedded_df0_only(unit)?;
+                        e.handle.eject_df0().map_err(|e| Error::Emulator(e.to_string()))?;
+                        *e.df0.lock().unwrap() = None;
+                        return j(true);
+                    }
                     session::control(x)?.eject_floppy(unit)?;
                     j(true)
                 })
             }
             "session_screenshot" => self.session_screenshot(),
+            "session_frame" => self.session_frame(a),
+            "session_input" => self.session_input(a),
             "session_copy_drive" => self.session_copy_drive(a),
             "session_perf" => self.with_session(|x| {
+                if let Some(e) = x.session.embedded() {
+                    let st = e.handle.stats();
+                    return j(json!({
+                        "fps": { "emulated": format!("{:.1}", st.measured_fps), "target": format!("{:.1}", st.fps_target) },
+                        "leds": {},
+                        "uptime_s": x.session.started().elapsed().as_secs(),
+                        "frames": st.frames_run,
+                    }));
+                }
                 let c = session::control(x)?;
                 let fps: serde_json::Map<String, Value> =
                     c.fps()?.into_iter().map(|(k, v)| (k, Value::String(v))).collect();
                 let leds: serde_json::Map<String, Value> =
                     c.led_status()?.into_iter().map(|(k, v)| (k, Value::String(v))).collect();
-                j(json!({ "fps": fps, "leds": leds, "uptime_s": x.session.started.elapsed().as_secs() }))
+                j(json!({ "fps": fps, "leds": leds, "uptime_s": x.session.started().elapsed().as_secs() }))
             }),
             "session_save_state" => self.session_state(a, true),
             "session_load_state" => self.session_state(a, false),
@@ -473,7 +548,7 @@ impl Service {
         j(self.storage_location())
     }
 
-    fn session_start(self: &Arc<Self>, profile_id: &str) -> Result<Value> {
+    fn session_start(self: &Arc<Self>, profile_id: &str, mode: Option<&str>) -> Result<Value> {
         {
             let mut g = self.sessions.active.lock().unwrap();
             if let Some(x) = g.as_mut() {
@@ -486,8 +561,32 @@ impl Service {
                 session::finish(&self.lib, dead, clean);
             }
         }
-        let eng = self.engine()?;
-        let ctx = session::StartContext { lib: &self.lib, engine: &eng, env: &self.launch_env };
+        let mode = match mode {
+            Some(m) => m.to_string(),
+            None => self.lib.get_setting("run_mode")?.unwrap_or_else(|| "process".into()),
+        };
+        let eng = self.engine();
+        let core = match mode.as_str() {
+            "embedded" => Some(self.retro_core().ok_or_else(|| {
+                Error::NotFound(
+                    "The Amiberry libretro core was not found. Put it next to the emulator or set its location in Settings."
+                        .into(),
+                )
+            })?),
+            "process" => None,
+            other => return Err(bad(format!("unknown run mode '{other}'"))),
+        };
+        let eng_ref = match (&eng, &core) {
+            (Ok(e), _) => Some(e),
+            (Err(_), Some(_)) => None,
+            (Err(e), None) => return Err(Error::NotFound(e.to_string())),
+        };
+        let ctx = session::StartContext {
+            lib: &self.lib,
+            engine: eng_ref,
+            env: &self.launch_env,
+            embedded_core: core.as_deref(),
+        };
         let active = session::start(&ctx, profile_id)?;
         let warnings = active.warnings.clone();
         *self.sessions.active.lock().unwrap() = Some(active);
@@ -526,6 +625,21 @@ impl Service {
     fn session_control(&self, a: &Value) -> Result<Value> {
         let action = s(a, "action")?.to_string();
         self.with_session(|x| {
+            if let Some(e) = x.session.embedded() {
+                match action.as_str() {
+                    "pause" => e.handle.pause(),
+                    "resume" => e.handle.resume(),
+                    // libretro exposes one reset; it is the equivalent of the emulator's hard reset.
+                    "reset_soft" | "reset_hard" => e.handle.reset().map_err(|e| Error::Emulator(e.to_string()))?,
+                    "toggle_fullscreen" | "toggle_mouse_grab" | "mute" | "volume" => {
+                        return Err(Error::Unsupported(
+                            "This control is not available when the machine runs inside Amiga Studio.".into(),
+                        ))
+                    }
+                    other => return Err(bad(format!("unknown action '{other}'"))),
+                }
+                return j(true);
+            }
             let c = session::control(x)?;
             match action.as_str() {
                 "pause" => c.pause()?,
@@ -560,6 +674,23 @@ impl Service {
             return Err(bad("only disk images (ADF) can be inserted"));
         }
         self.with_session(|x| {
+            if let Some(e) = x.session.embedded() {
+                embedded_df0_only(unit)?;
+                // The libretro disk interface has no write-protect switch, so an untouched original could
+                // be modified by the guest. Refuse instead of risking it.
+                if m.pristine || bo(a, "write_protect", false) {
+                    return Err(bad(
+                        "This mode cannot write protect a disk. Insert a working copy (Make working copy in Disks) instead.",
+                    ));
+                }
+                if session::inserted_paths(x).contains(&m.path) {
+                    return Err(bad("that disk is already in a drive; use a working copy for a second drive"));
+                }
+                e.handle.insert_df0(&m.path).map_err(|e| Error::Emulator(e.to_string()))?;
+                *e.df0.lock().unwrap() = Some(m.path.clone());
+                let _ = self.lib.touch_media(&m.id);
+                return j(true);
+            }
             let c = session::control(x)?;
             let busy = session::inserted_paths(x);
             if busy.contains(&m.path) {
@@ -575,6 +706,14 @@ impl Service {
     }
 
     fn session_screenshot(&self) -> Result<Value> {
+        if let Some(png) = self.with_session(|x| {
+            Ok(match x.session.embedded() {
+                Some(e) => Some(e.handle.screenshot_png().ok_or_else(|| Error::Emulator("no picture yet".into()))?),
+                None => None,
+            })
+        })? {
+            return j(json!({ "png_base64": base64::engine::general_purpose::STANDARD.encode(png) }));
+        }
         let path = self.lib.layout.runtime().join(format!("shot-{}.png", amiga_core::fsutil::random_id()));
         self.with_session(|x| session::control(x)?.screenshot(&path))?;
         let end = std::time::Instant::now() + Duration::from_secs(4);
@@ -586,6 +725,59 @@ impl Service {
             std::fs::read(&path).map_err(|_| Error::Emulator("the emulator did not produce a screenshot".into()))?;
         let _ = std::fs::remove_file(&path);
         j(json!({ "png_base64": base64::engine::general_purpose::STANDARD.encode(bytes) }))
+    }
+
+    /// Latest picture of an embedded machine; `{ "unchanged": true }` if nothing new since `since`.
+    fn session_frame(&self, a: &Value) -> Result<Value> {
+        let since = a.get("since").and_then(Value::as_u64).unwrap_or(u64::MAX);
+        self.with_session(|x| {
+            let e = x.session.embedded().ok_or_else(|| {
+                Error::Unsupported("The picture is only available when the machine runs inside Amiga Studio.".into())
+            })?;
+            let seq = e.handle.frame_seq();
+            if seq == since || seq == 0 {
+                return j(json!({ "unchanged": true, "seq": seq }));
+            }
+            let f = e.handle.frame().ok_or_else(|| Error::Emulator("no picture yet".into()))?;
+            let png = e.handle.screenshot_png().ok_or_else(|| Error::Emulator("no picture yet".into()))?;
+            j(json!({
+                "seq": f.seq,
+                "width": f.width,
+                "height": f.height,
+                "png_base64": base64::engine::general_purpose::STANDARD.encode(png),
+            }))
+        })
+    }
+
+    /// Keyboard / mouse / joystick events for an embedded machine.
+    fn session_input(&self, a: &Value) -> Result<Value> {
+        let events = a.get("events").and_then(Value::as_array).ok_or_else(|| bad("missing list 'events'"))?;
+        if events.len() > 256 {
+            return Err(bad("too many input events in one call"));
+        }
+        self.with_session(|x| {
+            let e = x.session.embedded().ok_or_else(|| {
+                Error::Unsupported("Input is only injected when the machine runs inside Amiga Studio.".into())
+            })?;
+            let n = |v: &Value, k: &str| {
+                v.get(k).and_then(Value::as_i64).ok_or_else(|| bad(format!("missing number '{k}'")))
+            };
+            for ev in events {
+                let down = ev.get("down").and_then(Value::as_bool).unwrap_or(true);
+                match ev.get("kind").and_then(Value::as_str).unwrap_or("") {
+                    "key" => e.handle.key(u32::try_from(n(ev, "code")?).map_err(|_| bad("bad key code"))?, down),
+                    "mouse_move" => e
+                        .handle
+                        .mouse_move(n(ev, "dx")?.clamp(-4096, 4096) as i32, n(ev, "dy")?.clamp(-4096, 4096) as i32),
+                    "mouse_button" => e.handle.mouse_button(n(ev, "button")?.clamp(0, 2) as usize, down),
+                    "joypad" => {
+                        e.handle.joypad(n(ev, "port")?.clamp(0, 1) as usize, n(ev, "id")?.clamp(0, 15) as usize, down)
+                    }
+                    other => return Err(bad(format!("unknown input kind '{other}'"))),
+                }
+            }
+            j(true)
+        })
     }
 
     fn session_state(&self, a: &Value, save: bool) -> Result<Value> {
@@ -600,6 +792,37 @@ impl Service {
         std::fs::create_dir_all(&dir)?;
         let state = dir.join(format!("{name}.uss"));
         let cfg = dir.join(format!("{name}.uae"));
+        let rstate = dir.join(format!("{name}.retrostate"));
+        let note = "A saved state captures the emulator's memory only. Hard disk and floppy contents are NOT rolled back; restoring a state after the disk changed can corrupt it. Take a hard-disk snapshot first if you need both.";
+        if self.with_session(|x| Ok(x.session.embedded().is_some()))? {
+            // States made by the embedded core are in the core's own format (different from the standalone
+            // emulator's .uss), so they carry their own extension.
+            self.with_session(|x| {
+                let e = x.session.embedded().unwrap();
+                // Verified against the Amiberry 8.4.0 libretro core: restoring a state of a machine with an
+                // IDE hard disk crashes inside the core (SIGSEGV in restore_gayle_ide), which would take the
+                // whole app down. So states are refused for such machines instead of offered and lost.
+                if !x.profile.hard_disks.is_empty() {
+                    return Err(Error::Unsupported(
+                        "Saved states are not available for machines with hard disks in this mode (the emulator core crashes when restoring them). Use the machine's own window mode, or a floppy-only machine.".into(),
+                    ));
+                }
+                if save {
+                    let data = e.handle.save_state().map_err(|e| Error::Emulator(e.to_string()))?;
+                    amiga_core::fsutil::write_atomic(&rstate, &dir, &data, true)?;
+                } else {
+                    if !rstate.exists() {
+                        return Err(Error::NotFound("no saved state with that name (made in this mode)".into()));
+                    }
+                    if std::fs::metadata(&rstate)?.len() > 512 * 1024 * 1024 {
+                        return Err(bad("that saved state is implausibly large"));
+                    }
+                    e.handle.load_state(std::fs::read(&rstate)?).map_err(|e| Error::Emulator(e.to_string()))?;
+                }
+                Ok(())
+            })?;
+            return j(json!({ "path": rstate.display().to_string(), "note": note }));
+        }
         self.with_session(|x| {
             let c = session::control(x)?;
             if save {
@@ -631,6 +854,12 @@ impl Service {
                 as u8;
         if su == du {
             return Err(bad("choose two different drives"));
+        }
+        if self.with_session(|x| Ok(x.session.embedded().is_some()))? {
+            return Err(Error::Unsupported(
+                "Drive-to-drive copying needs to read which disk is in each drive, which this mode cannot do. Use Disks > Copy, or run the machine in its own window."
+                    .into(),
+            ));
         }
         let new_name = so(a, "new_name").map(str::to_string);
         let verify = bo(a, "verify", true);
@@ -697,6 +926,16 @@ impl Service {
             Ok(serde_json::to_value(rep).unwrap())
         });
         j(json!({ "job": id }))
+    }
+}
+
+fn embedded_df0_only(unit: u8) -> Result<()> {
+    if unit == 0 {
+        Ok(())
+    } else {
+        Err(Error::Unsupported(
+            "In this mode only DF0: can be swapped while the machine runs (a limit of the emulator core). Use the machine's own window mode to swap DF1-DF3.".into(),
+        ))
     }
 }
 

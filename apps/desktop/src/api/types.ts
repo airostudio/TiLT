@@ -275,7 +275,13 @@ export interface AppInfo {
   storage_root: string
   engine: EngineInfo | null
   runtime_control: boolean
+  /** Path of the Amiberry libretro core when machines can run inside the app, else null. */
+  embedded_core: string | null
+  run_mode: RunMode
 }
+
+export type RunMode = 'process' | 'embedded'
+
 
 export interface SessionStatus {
   running: boolean
@@ -284,6 +290,8 @@ export interface SessionStatus {
   pid: number | null
   uptime_s: number
   runtime_control: boolean
+  /** `embedded` = drawn inside the app by the libretro core; `process` = the emulator's own window. */
+  mode: RunMode | null
   paused: boolean | null
   warnings: string[]
   log_path: string | null
@@ -300,6 +308,10 @@ export interface DriveView {
   motor: boolean
   writing: boolean
   track: number | null
+  /** Can a disk be inserted/ejected here while the machine runs? (embedded mode: DF0 only) */
+  swappable: boolean
+  /** Do motor/writing/track carry real data? (embedded mode has no drive read-back) */
+  live_state: boolean
 }
 
 export interface SessionRecord {

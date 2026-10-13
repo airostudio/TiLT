@@ -1,0 +1,16 @@
+[package]
+name = "amiga-retro"
+description = "A minimal libretro frontend: hosts the Amiberry libretro core in-process for embedded video, audio, input and run-time control on every platform (including Windows)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+libloading = "0.8"
+png = "0.17"
+thiserror = "2"
+
+[dev-dependencies]
+amiga-core = { path = "../amiga-core", features = ["test-support"] }
+tempfile = "3"

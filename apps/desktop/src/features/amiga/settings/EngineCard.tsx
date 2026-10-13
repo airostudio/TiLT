@@ -118,7 +118,7 @@ export function EngineCard() {
               <strong>Linux and macOS builds</strong> of Amiberry have this control channel, so those features are available.
             </li>
             <li>
-              <strong>Official Windows builds</strong> of Amiberry have no control channel. There, disk changes and pauses use the emulator's own menu (press F12 in its window), and changes made in Amiga Studio apply the next time the machine starts.
+              <strong>Official Windows builds</strong> of Amiberry have no control channel. There, disk changes and pauses use the emulator's own menu (press F12 in its window), and changes made in Amiga Studio apply the next time the machine starts. To control a machine from Amiga Studio anyway, use “Run machines inside Amiga Studio” below.
             </li>
           </ul>
           {info && (

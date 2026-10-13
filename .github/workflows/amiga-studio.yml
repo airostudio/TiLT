@@ -47,6 +47,15 @@ jobs:
           echo "AMIBERRY_BIN=$PWD/root/usr/bin/amiberry" >> "$GITHUB_ENV"
           echo "AROS_ROM=$PWD/root/usr/share/amiberry/roms/aros-rom.bin" >> "$GITHUB_ENV"
           echo "AROS_EXT=$PWD/root/usr/share/amiberry/roms/aros-ext.bin" >> "$GITHUB_ENV"
+      - name: Fetch the Amiberry libretro core (checksum verified) for the embedded-mode tests
+        run: |
+          set -euo pipefail
+          base="https://github.com/BlitterStudio/amiberry/releases/download/v${AMIBERRY_VERSION}"
+          mkdir -p "$RUNNER_TEMP/lr" && cd "$RUNNER_TEMP/lr"
+          curl -fsSL -O "$base/amiberry-libretro-linux-x86_64.so"
+          curl -fsSL -O "$base/SHA256SUMS"
+          grep ' amiberry-libretro-linux-x86_64.so$' SHA256SUMS | sha256sum -c -
+          echo "LIBRETRO_CORE=$PWD/amiberry-libretro-linux-x86_64.so" >> "$GITHUB_ENV"
       - name: Engine capability matrix must stay green
         run: |
           cargo run -q -p amiga-cli -- engine-matrix "$AMIBERRY_BIN" > matrix.md
@@ -55,6 +64,8 @@ jobs:
       - name: Real-engine end-to-end (AROS ROM, Xvfb)
         run: xvfb-run -a cargo test -p amiga-core -p amiga-service --test engine_e2e --test engine_service -- --nocapture
         env: { E2E_ARTIFACT_DIR: '${{ runner.temp }}/e2e-artifacts' }
+      - name: Embedded-mode (libretro core) end-to-end, no display needed
+        run: cargo test -p amiga-retro -p amiga-service --test core_e2e --test embedded_service -- --nocapture
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: engine-e2e, path: '${{ runner.temp }}/e2e-artifacts', if-no-files-found: ignore }

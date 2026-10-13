@@ -10,6 +10,7 @@
 | [compatibility/engine-capability-matrix.md](compatibility/engine-capability-matrix.md) | Generated: every CPU/chipset/preset checked against the real engine |
 | [compatibility/test-plan.md](compatibility/test-plan.md) | Manual tests that need authentic media or Windows hardware |
 | [compatibility/evidence/](compatibility/evidence) | Screenshots from real runs |
+| [user-guide/run-inside-the-app.md](user-guide/run-inside-the-app.md) | The second run mode: the machine inside the TiLT window (control on every system), with its limits |
 | [user-guide/getting-started.md](user-guide/getting-started.md) | End-user quick start |
 | [developer-guide/service-commands.md](developer-guide/service-commands.md) | The one command surface between UI and backend |
 | [developer-guide/testing.md](developer-guide/testing.md) | How to run every kind of test |

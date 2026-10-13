@@ -9,14 +9,97 @@ use amiga_core::ipc::IpcClient;
 use amiga_core::library::{HdfSessionGuard, Library, MediaRecord};
 use amiga_core::profiles::{self, DriveKind, MachineProfile, Severity};
 use amiga_core::{Error, Result};
+use amiga_retro::{RetroConfig, RetroHandle};
 use serde::Serialize;
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+/// How a machine is run.
+///
+/// * `Process` - the standalone Amiberry in its own window, controlled over its socket where the build
+///   has one (Linux/macOS; **not** official Windows builds).
+/// * `Embedded` - the Amiberry *libretro core* hosted in this process by `amiga-retro`. Works the same on
+///   every platform, so it is how run-time control reaches Windows. Trade-offs are documented in ADR-0001
+///   (floppy hot-swap is DF0 only; no drive-state read-back).
+pub enum Backend {
+    Process(Session),
+    Embedded(Embedded),
+}
+
+pub struct Embedded {
+    pub handle: RetroHandle,
+    pub started: Instant,
+    pub log_path: PathBuf,
+    /// What we last put in DF0 (the core has no read-back).
+    pub df0: Mutex<Option<PathBuf>>,
+    /// Disks the machine was configured with at start (DF1-DF3 cannot change while it runs).
+    pub floppies: [Option<PathBuf>; 4],
+}
+
+impl Backend {
+    pub fn is_running(&mut self) -> bool {
+        match self {
+            Backend::Process(s) => s.is_running(),
+            Backend::Embedded(e) => !e.handle.shutdown_requested(),
+        }
+    }
+    /// `Some(clean)` once the machine has ended.
+    pub fn exited(&mut self) -> Option<bool> {
+        match self {
+            Backend::Process(s) => s.exited(),
+            Backend::Embedded(e) => e.handle.shutdown_requested().then_some(true),
+        }
+    }
+    pub fn started(&self) -> Instant {
+        match self {
+            Backend::Process(s) => s.started,
+            Backend::Embedded(e) => e.started,
+        }
+    }
+    pub fn pid(&self) -> Option<u32> {
+        match self {
+            Backend::Process(s) => Some(s.pid()),
+            Backend::Embedded(_) => None,
+        }
+    }
+    pub fn log_path(&self) -> &Path {
+        match self {
+            Backend::Process(s) => &s.log_path,
+            Backend::Embedded(e) => &e.log_path,
+        }
+    }
+    pub fn mode(&self) -> &'static str {
+        match self {
+            Backend::Process(_) => "process",
+            Backend::Embedded(_) => "embedded",
+        }
+    }
+    pub fn embedded(&self) -> Option<&Embedded> {
+        match self {
+            Backend::Embedded(e) => Some(e),
+            _ => None,
+        }
+    }
+    /// The standalone emulator's socket, if this backend has one.
+    pub fn control(&self) -> Option<&IpcClient> {
+        match self {
+            Backend::Process(s) => s.control(),
+            Backend::Embedded(_) => None,
+        }
+    }
+    pub fn stop(&mut self, grace: Duration) -> Result<StopOutcome> {
+        match self {
+            Backend::Process(s) => s.stop(grace),
+            // Dropping the handle runs unload_game/deinit on the core thread.
+            Backend::Embedded(_) => Ok(StopOutcome::Clean),
+        }
+    }
+}
 
 pub struct ActiveSession {
-    pub session: Session,
+    pub session: Backend,
     pub record_id: String,
     pub profile: MachineProfile,
     pub guards: Vec<HdfSessionGuard>,
@@ -31,6 +114,8 @@ pub struct SessionStatus {
     pub pid: Option<u32>,
     pub uptime_s: u64,
     pub runtime_control: bool,
+    /// "process" (standalone emulator window) or "embedded" (libretro core drawn inside the app).
+    pub mode: Option<&'static str>,
     pub paused: Option<bool>,
     pub warnings: Vec<String>,
     pub log_path: Option<String>,
@@ -48,6 +133,10 @@ pub struct DriveView {
     pub motor: bool,
     pub writing: bool,
     pub track: Option<i64>,
+    /// Can a disk be inserted/ejected in this drive while the machine runs? (Embedded mode: DF0 only.)
+    pub swappable: bool,
+    /// Does `motor`/`writing`/`track` carry real data? (Embedded mode has no drive read-back.)
+    pub live_state: bool,
 }
 
 #[derive(Default)]
@@ -57,8 +146,11 @@ pub struct SessionManager {
 
 pub struct StartContext<'a> {
     pub lib: &'a Library,
-    pub engine: &'a EngineInfo,
+    /// Needed for process mode; in embedded mode it is only used for the optional config pre-check.
+    pub engine: Option<&'a EngineInfo>,
     pub env: &'a [(String, String)],
+    /// `Some(core)` runs the machine inside this process through the libretro core.
+    pub embedded_core: Option<&'a Path>,
 }
 
 pub fn start(ctx: &StartContext<'_>, profile_id: &str) -> Result<ActiveSession> {
@@ -133,26 +225,40 @@ pub fn start(ctx: &StartContext<'_>, profile_id: &str) -> Result<ActiveSession> 
             return Err(e);
         }
     };
-    // let the real engine check the configuration first
-    match engine::dump_config(ctx.engine, &cfg, &lib.layout.runtime()) {
-        Ok(r) => warnings.extend(r.corrections.iter().map(|c| format!("The emulator adjusted the configuration: {c}"))),
-        Err(e) => {
-            for g in guards {
-                let _ = lib.end_hdf_session(g, true);
+    // let the real engine check the configuration first (when a standalone engine is installed)
+    match ctx.engine {
+        Some(eng) => match engine::dump_config(eng, &cfg, &lib.layout.runtime()) {
+            Ok(r) => {
+                warnings.extend(r.corrections.iter().map(|c| format!("The emulator adjusted the configuration: {c}")))
             }
-            return Err(e);
-        }
+            Err(e) => {
+                for g in guards {
+                    let _ = lib.end_hdf_session(g, true);
+                }
+                return Err(e);
+            }
+        },
+        None => warnings.push(
+            "The standalone emulator is not installed, so this configuration could not be pre-checked by it.".into(),
+        ),
     }
 
-    let launched = Session::launch(LaunchRequest {
-        engine: ctx.engine,
-        profile_id: &profile.id,
-        config_text: &cfg,
-        runtime_dir: &lib.layout.runtime(),
-        log_dir: &lib.layout.logs(),
-        locks: vec![],
-        env: ctx.env.to_vec(),
-    });
+    let launched: Result<Backend> = match (ctx.embedded_core, ctx.engine) {
+        (Some(core), _) => start_embedded(lib, core, &profile, &cfg, media.floppies.clone()),
+        (None, Some(eng)) => Session::launch(LaunchRequest {
+            engine: eng,
+            profile_id: &profile.id,
+            config_text: &cfg,
+            runtime_dir: &lib.layout.runtime(),
+            log_dir: &lib.layout.logs(),
+            locks: vec![],
+            env: ctx.env.to_vec(),
+        })
+        .map(Backend::Process),
+        (None, None) => Err(Error::NotFound(
+            "The Amiga emulator engine (Amiberry) was not found. Install it or set its location in Settings.".into(),
+        )),
+    };
     let session = match launched {
         Ok(s) => s,
         Err(e) => {
@@ -164,6 +270,38 @@ pub fn start(ctx: &StartContext<'_>, profile_id: &str) -> Result<ActiveSession> 
     };
     let record_id = lib.begin_session(&profile)?;
     Ok(ActiveSession { session, record_id, profile, guards, warnings })
+}
+
+fn start_embedded(
+    lib: &Library,
+    core: &Path,
+    profile: &MachineProfile,
+    config_text: &str,
+    floppies: [Option<PathBuf>; 4],
+) -> Result<Backend> {
+    let dir = lib.layout.runtime().join("retro");
+    let system = dir.join("system");
+    let saves = dir.join("saves");
+    std::fs::create_dir_all(&system)?;
+    std::fs::create_dir_all(&saves)?;
+    let uae = dir.join(format!("{}.uae", profile.id));
+    amiga_core::fsutil::write_atomic(&uae, &dir, config_text.as_bytes(), true)?;
+    let handle = RetroHandle::start(RetroConfig {
+        core: core.to_path_buf(),
+        system_dir: system,
+        save_dir: saves,
+        content: uae,
+        options: vec![],
+    })
+    .map_err(|e| Error::Emulator(e.to_string()))?;
+    let log_path = lib.layout.logs().join(format!("embedded-{}.log", profile.id));
+    Ok(Backend::Embedded(Embedded {
+        handle,
+        started: Instant::now(),
+        log_path,
+        df0: Mutex::new(floppies[0].clone()),
+        floppies,
+    }))
 }
 
 /// End bookkeeping for a session that is already stopped.
@@ -194,21 +332,25 @@ pub fn status(m: &Mutex<Option<ActiveSession>>, runtime_control: bool) -> Sessio
     let mut g = m.lock().unwrap();
     match g.as_mut() {
         Some(a) => {
-            let paused = a
-                .session
-                .control()
-                .and_then(|c| c.request(&["GET_STATUS"]).ok())
-                .and_then(|f| f.iter().find_map(|x| x.strip_prefix("Paused=").map(|v| v == "true")));
+            let paused = match a.session.embedded() {
+                Some(e) => Some(e.handle.is_paused()),
+                None => a
+                    .session
+                    .control()
+                    .and_then(|c| c.request(&["GET_STATUS"]).ok())
+                    .and_then(|f| f.iter().find_map(|x| x.strip_prefix("Paused=").map(|v| v == "true"))),
+            };
             SessionStatus {
                 running: a.session.is_running(),
                 profile_id: Some(a.profile.id.clone()),
                 profile_name: Some(a.profile.name.clone()),
-                pid: Some(a.session.pid()),
-                uptime_s: a.session.started.elapsed().as_secs(),
-                runtime_control,
+                pid: a.session.pid(),
+                uptime_s: a.session.started().elapsed().as_secs(),
+                runtime_control: runtime_control || a.session.embedded().is_some(),
+                mode: Some(a.session.mode()),
                 paused,
                 warnings: a.warnings.clone(),
-                log_path: Some(a.session.log_path.display().to_string()),
+                log_path: Some(a.session.log_path().display().to_string()),
                 hard_disks: a.guards.iter().map(|g| g.hdf_id.clone()).collect(),
             }
         }
@@ -219,6 +361,7 @@ pub fn status(m: &Mutex<Option<ActiveSession>>, runtime_control: bool) -> Sessio
             pid: None,
             uptime_s: 0,
             runtime_control,
+            mode: None,
             paused: None,
             warnings: vec![],
             log_path: None,
@@ -232,6 +375,30 @@ fn kv_get<'a>(kv: &'a [(String, String)], k: &str) -> Option<&'a str> {
 }
 
 pub fn drives(lib: &Library, a: &ActiveSession) -> Result<Vec<DriveView>> {
+    if let Some(e) = a.session.embedded() {
+        let media = lib.list_media()?;
+        let df0 = e.df0.lock().unwrap().clone();
+        return Ok((0..4u8)
+            .map(|unit| {
+                let d = &a.profile.drives[unit as usize];
+                let path = if unit == 0 { df0.clone() } else { e.floppies[unit as usize].clone() };
+                let rec = path.as_ref().and_then(|p| media.iter().find(|m| &m.path == p));
+                DriveView {
+                    unit,
+                    enabled: d.kind != DriveKind::Disabled,
+                    media_id: rec.map(|m| m.id.clone()),
+                    media_name: rec.map(|m| m.name.clone()),
+                    write_protected: d.write_protect || rec.is_some_and(|m| m.pristine),
+                    motor: false,
+                    writing: false,
+                    track: None,
+                    path: path.map(|p| p.display().to_string()),
+                    swappable: unit == 0 && d.kind != DriveKind::Disabled,
+                    live_state: false,
+                }
+            })
+            .collect());
+    }
     let c = control(a)?;
     let state = c.drive_state()?;
     let media = lib.list_media()?;
@@ -250,12 +417,19 @@ pub fn drives(lib: &Library, a: &ActiveSession) -> Result<Vec<DriveView>> {
             writing: kv_get(&state, &format!("DF{unit}_writing")) == Some("1"),
             track: kv_get(&state, &format!("DF{unit}_track")).and_then(|t| t.parse().ok()),
             path: p,
+            swappable: true,
+            live_state: true,
         });
     }
     Ok(out)
 }
 
 pub fn inserted_paths(a: &ActiveSession) -> HashSet<PathBuf> {
+    if let Some(e) = a.session.embedded() {
+        let mut s: HashSet<PathBuf> = e.df0.lock().unwrap().iter().cloned().collect();
+        s.extend(e.floppies.iter().skip(1).flatten().cloned());
+        return s;
+    }
     a.session
         .control()
         .and_then(|c| c.drive_state().ok())

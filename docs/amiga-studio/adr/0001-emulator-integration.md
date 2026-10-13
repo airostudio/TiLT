@@ -17,6 +17,12 @@
    config is fed to `amiberry --dump-config`; any value the engine changes is reported to the user.
    `amiga-studio-cli engine-matrix` renders the result into `compatibility/engine-capability-matrix.md`.
 
+4. **Second run mode (added, see "Update: option D" below): the Amiberry libretro core hosted in-process
+   by `crates/amiga-retro`.** It gives run-time control, an in-window display and input on every platform,
+   including Windows, at the cost of the limits listed below. It is opt-in; the separate-process mode
+   stays the default because it is the full emulator (sound, joystick, full screen, DF0-DF3 hot swap on
+   Linux/macOS).
+
 ## What was verified (and how)
 
 | Claim | Evidence |
@@ -52,12 +58,61 @@ Integration alternatives:
 | **D. Amiberry libretro core (`amiberry-libretro-win-x86_64.dll`, published on every release) hosted by a small libretro frontend** | Would give an *embedded* authentic display (frames come to us), audio/input callbacks, a standard disk-control interface for floppy swapping and `retro_serialize` save states, on Windows, without patching Amiberry. Larger engineering item (video/audio/input frontend). Core-option coverage for 68040/AGA/hardfiles must be verified. **Candidate for the embedded-display requirement.** |
 | **E. Re-parent Amiberry's SDL window into ours (Win32 `SetParent`)** | Brittle (focus, DPI, input capture, full-screen). Rejected. |
 
+## Update: option D implemented and measured on Linux (2026-10-13)
+
+`crates/amiga-retro` is a minimal libretro **frontend** (about 750 lines of Rust, `libloading` + `png`). It
+loads `amiberry-libretro-<os>-<arch>.{so,dll,dylib}` (a release asset, SHA-256-checked against the
+release `SHA256SUMS`), runs `retro_run` on a dedicated thread at the core's frame rate, and exposes video
+frames (XRGB8888 / RGB565 / 0RGB1555 converted to RGBA), audio batches, keyboard/mouse/joypad injection,
+pause, reset, `retro_serialize`/`unserialize`, the disk-control interface and the core's own on-screen
+messages. `amiga-service` exposes it as a second session backend (`mode: "embedded"`), and the UI draws the
+frames in the Emulator screen.
+
+**Measured against the real Linux core 8.4.0 with the AROS ROM** (`crates/amiga-retro/tests/core_e2e.rs`,
+`crates/amiga-service/tests/embedded_service.rs`, `apps/desktop/e2e/embedded.spec.mjs`):
+
+| What | Result |
+|---|---|
+| A generated `.uae` (A1200/AGA, ROMs, hard disk) is accepted as libretro content | works; AROS boots, 756x576 RGBA frames at 48.7 fps measured against 50 target |
+| Mouse injection | works: 10 x (8, 6) host units moved the guest's pointer from (86, 49) to about (230, 157) |
+| Keyboard injection | **accepted without error; its effect inside the guest is not verified** (AROS has no text input to observe on this boot screen) |
+| Pause / resume | works (frame counter stops, then resumes) |
+| Reset | works (core resets and keeps drawing) |
+| Save state | works (10 MiB state for an A1200) |
+| **Load state** | works for a floppy-only machine; **crashes the whole process (SIGSEGV in `restore_gayle_ide`) when the machine has an IDE hard disk.** Reproduced in isolation (save alone is fine). The service therefore refuses save/load for such machines. |
+| Floppy swap | `disk_control` swaps **DF0 only** (verified in the core source and live: "Disk ejected", "Disk 1: ... inserted"). DF1-DF3 are fixed at start. |
+| Write-protect a disk | **not possible** through libretro, so untouched originals are refused in this mode (a working copy must be inserted) |
+| Drive state read-back (motor, track, which disk) | **not available**; the UI shows only what Amiga Studio itself last inserted |
+| `SET_VOLUME` / mute | not applicable; **audio is produced by the core (503 k frames in 10 s) but no sound is played yet** because the host has no audio output. The peak sample during the AROS boot is 0, so audible output was not verified either. |
+| Restart | start, stop, start again in one process works (the core stays mapped; libretro cores are not designed to be unloaded) |
+| Log callback | not implemented (`GET_LOG_INTERFACE` returns false): the callback is C-variadic, which stable Rust cannot define |
+| One core per process | the callbacks are plain C pointers without user data, so state lives in one global; a second concurrent machine is refused |
+
+**Robustness trade-off.** The core runs inside the Amiga Studio process. A crash in the core (the load-state
+crash above is a real example) takes the app down, whereas the separate-process mode isolates it. The
+better long-term shape is the same host in a small helper process (`amiga-retro-host`) streaming frames to
+the UI; that is not built. Until then the UI states the trade-off, the default stays "own window", and a
+hard disk is never put at risk by the guard that refuses states.
+
+**Not verified: Windows.** Everything above ran on Linux. `amiberry-libretro-win-x86_64.dll` was downloaded
+and checksum-matched but **never loaded**. The host uses only portable libretro API and `libloading`, so
+it should work, but "should" is not evidence: the Phase 2 gate below still applies to Windows.
+
+**Verdict.** Option D closes most of the Windows run-time-control gap (pause, reset, DF0 swap, screenshots,
+saved states for floppy machines, an in-window display, mouse/keyboard) **without patching Amiberry**.
+It does not close: DF1-DF3 hot swap, sound, joystick, states with hard disks, clean-quit semantics
+beyond "unload the core" (the guest is not asked to shut down), and process isolation. Option C (patch
+`AF_UNIX` into the Windows build) would give the full control set with the full emulator, but needs a
+maintained fork and a Windows toolchain; it remains the candidate for full parity.
+
 ## Consequences
 
-* **Windows today:** start, stop (graceful close is not possible; a stop is a forced termination and is
-  reported as such, disks are flushed by Amiberry only on a clean exit), profile-time floppy/HDF
-  configuration. **No** hot disk swap, pause, reset, save states, screenshots or volume from Amiga Studio.
-  The UI detects this (`runtime_control = false`) and explains it; it never pretends.
+* **Windows today (own-window mode):** start, stop (graceful close is not possible; a stop is a forced
+  termination and is reported as such, disks are flushed by Amiberry only on a clean exit), profile-time
+  floppy/HDF configuration. **No** hot disk swap, pause, reset, save states, screenshots or volume from
+  Amiga Studio. The UI detects this (`runtime_control = false`) and explains it; it never pretends.
+  **Windows with the libretro core ("inside Amiga Studio" mode):** the controls listed in the update
+  above, *untested on Windows*.
 * **Linux/macOS today:** full run-time control. Used for all automated end-to-end tests.
 * **Single instance:** Amiberry's socket names are global per user, so Amiga Studio refuses to start a
   second emulator while any Amiberry answers on a socket. This also protects disk images.

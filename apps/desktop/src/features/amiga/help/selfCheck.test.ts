@@ -25,7 +25,7 @@ describe('self-check helpers', () => {
     expect(t).toContain('(none)')
   })
   it('lists each check with its status word', () => {
-    const t = buildReport({ version: '1.2.3', platform: 'linux', arch: 'x86_64', storage_root: '/lib', engine: null, runtime_control: true }, null, [{ id: 'x', title: 'Thing', status: 'warn', detail: 'careful' }], [
+    const t = buildReport({ version: '1.2.3', platform: 'linux', arch: 'x86_64', storage_root: '/lib', engine: null, runtime_control: true, embedded_core: null, run_mode: 'process' }, null, [{ id: 'x', title: 'Thing', status: 'warn', detail: 'careful' }], [
       { id: 's', profile_id: 'p', profile_name: 'A500', started_at: 100, ended_at: 160, outcome: 'unclean' },
     ])
     expect(t).toContain('[WARN] Thing: careful')

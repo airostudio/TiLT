@@ -73,7 +73,7 @@ insufficient_space locked unsafe not_found already_exists cancelled emulator uns
 | `operations_list` | – | `OperationRecord[]` history |
 
 ## Emulator session
-| `session_start` | `profile_id` | `{started, warnings[]}` (locks disks, safety-backs-up HDFs, asks the engine to check the config) |
+| `session_start` | `profile_id`, `mode?` `process\|embedded` (default: the saved `run_mode`, else `process`) | `{started, warnings[]}` (locks disks, safety-backs-up HDFs, asks the engine to check the config; `embedded` hosts the libretro core in-process) |
 | `session_stop` | – | `{outcome: clean\|forced\|already_exited}` |
 | `session_status` | – | `SessionStatus` |
 | `session_control` | `action`: `pause resume reset_soft reset_hard toggle_fullscreen toggle_mouse_grab mute volume{value 0-100}` | `true` |
@@ -84,6 +84,19 @@ insufficient_space locked unsafe not_found already_exists cancelled emulator uns
 | `session_screenshot` | – | `{png_base64}` |
 | `session_perf` | – | `{fps: {...}, leds: {...}, uptime_s}` |
 | `session_save_state` / `session_load_state` | `name` | `{path, note}` – a state is emulator memory only, never disks |
+
+### Embedded (libretro) mode
+`SessionStatus.mode` is `process` or `embedded`. Extra commands: `session_frame {since?}` → `{unchanged:true,seq}` or
+`{seq,width,height,png_base64}` (poll about 14 times a second), `session_input {events[]}` with events
+`{kind:"key",code,down}` (libretro `RETROK_*` code), `{kind:"mouse_move",dx,dy}`, `{kind:"mouse_button",button 0-2,down}`,
+`{kind:"joypad",port,id,down}`. Settings: `embedded_set_core {path}`, `run_mode_set {mode}`; `app_info` reports
+`embedded_core` and `run_mode`. Differences from `process` mode, all returned as `unsupported` with a reason:
+`session_insert`/`session_eject` work for **DF0 only** and refuse untouched originals (no write-protect switch),
+`session_drives` marks DF1-DF3 `swappable:false` and has no motor/track read-back (`live_state:false`),
+`session_control` has `pause resume reset_soft reset_hard` (both resets are the core's one reset) but not fullscreen,
+mouse grab, mute or volume, `session_copy_drive` is unavailable, and `session_save_state`/`session_load_state` are
+refused for machines with hard disks (the core crashes restoring them). States are written as `<name>.retrostate`
+(the core's own format, not Amiberry's `.uss`).
 
 `session_*` control commands return `unsupported` on builds without a control channel (official
 Windows builds of Amiberry: see ADR-0001). The UI must then explain and fall back to "restart to apply".

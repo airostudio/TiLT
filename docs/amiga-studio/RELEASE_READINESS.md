@@ -13,18 +13,42 @@ well-tested foundation exists; the items in "Blocked / not done" must be closed 
 
 | Suite | Result |
 |---|---|
-| `cargo test --workspace` (core + service + CLI) | **150 passed**, 0 failed |
+| `cargo test --workspace` (core + service + CLI + libretro host) | **152 passed**, 0 failed |
 | Real-engine Rust e2e (`engine_e2e`, `engine_service`) with live Amiberry 8.4.0 + AROS | **2 passed** (≈14 s each) |
+| Embedded-mode Rust e2e (`core_e2e`, `embedded_service`) with the real **libretro core** 8.4.0 + AROS, no display | **2 passed** (pointer injection moves the guest pointer; pause, reset, state, DF0 swap, restart; service-level lifecycle twice in one process) |
 | Engine capability matrix (`amiga-studio-cli engine-matrix`) | **44 / 44 configurations accepted** with no engine corrections |
-| UI unit tests (vitest) | **35 passed** |
-| Browser e2e: real UI + real backend + Chromium | **79 passed**, 0 failed, 0 retries (includes **1 live-emulator test** driving real Amiberry/AROS through the UI, and 3 tests of the local-browser mode: token/Host/Origin protection, strict cookie, in-app file browser) |
+| UI unit tests (vitest) | **37 passed** |
+| Browser e2e: real UI + real backend + Chromium | **80 passed**, 0 failed, 0 retries (includes **1 live-emulator test** and **1 embedded-machine test** (libretro core inside the app) driving real Amiberry/AROS through the UI, and 3 tests of the local-browser mode: token/Host/Origin protection, strict cookie, in-app file browser) |
 | `cargo clippy -D warnings`, `cargo fmt --check`, `tsc`, `eslint --max-warnings 0` | clean |
 | `cargo deny check licenses bans sources` (both Cargo workspaces) | ok |
 | Tauri 2 shell: `cargo build --release` on Linux, launched under Xvfb, UI loaded data over the real IPC | works (`compatibility/evidence/desktop-shell-linux-webkitgtk.png`) |
 | Proprietary-media guard | passes; trips on a ROM-shaped file (self-tested) |
 
 Evidence images: `compatibility/evidence/` (AROS boot logo, AROS Workbench on an A1200/AGA configuration, the TiLT UI
-running a live session).
+running a live session, and `embedded-mode-inside-tilt-linux.png`: the machine drawn inside the TiLT window by the libretro core).
+
+## Windows run-time control: what was attempted and what is true now
+
+New this round: `crates/amiga-retro`, a minimal libretro frontend that hosts the Amiberry **libretro core** in-process
+(ADR-0001, option D), plus a second session backend and UI ("Inside TiLT"). Measured on **Linux** against the
+checksum-verified 8.4.0 core:
+
+| Windows gap (before) | With the libretro core |
+|---|---|
+| no pause / resume | ✅ works |
+| no reset | ✅ works (one reset: equivalent to a hard reset) |
+| no screenshots | ✅ works (and a live in-window picture, about 14 per second) |
+| no disk hot-swap | 🟡 **DF0 only** (core limit); DF1-DF3 fixed at start; originals refused (no write-protect switch) |
+| no save states | 🟡 floppy-only machines. **With an IDE hard disk the core segfaults on restore**, so these are refused |
+| no volume / mute | ⛔ not applicable: **no sound output at all yet** (the core produces samples, nothing plays them) |
+| no embedded display | ✅ drawn in the Emulator screen, with keyboard (accepted; guest effect unverified) and mouse (verified) |
+| no joystick / full screen | ⛔ not provided |
+| no clean quit | ⛔ stop = unload the core; the guest is not asked to shut down. HDF bookkeeping reports a clean stop |
+| crash isolation | ⛔ lost: a crash inside the core closes the app (the restore crash above proves this is real) |
+
+**Not verified on Windows.** The Windows DLL was checksum-matched but never loaded; this whole mode is Linux-measured.
+The default remains the separate-process mode. Full parity would still need option C (an `AF_UNIX` patch to the
+Windows build) or a helper process hosting the core.
 
 ## Completion criteria from the brief
 
@@ -48,11 +72,13 @@ running a live session).
 
 ## Blocked / not done (in priority order)
 
-1. **Windows run-time control (⛔ upstream limitation).** Official Windows Amiberry builds have no control socket
-   (verified in source and in the shipped binary). On Windows today: start/stop (stop is a forced termination),
-   profile-time disks only; no hot-swap, pause, reset, save states, screenshots, volume. Options C/D in ADR-0001
-   must be prototyped on Windows. The UI already degrades honestly.
-2. **Embedded emulator display (⛔ by design today).** The emulator opens its own window; the app shows a preview image.
+1. **Windows run-time control (🟡 partly closed, unproven on Windows).** Official Windows Amiberry builds have no
+   control socket (verified in source and in the shipped binary). The in-process libretro mode above restores pause,
+   reset, screenshots, DF0 swap and floppy-machine states, but **only Linux was run**; DF1-DF3 swap, sound, joystick,
+   states with hard disks and crash isolation are missing. Prototype both modes on Windows (ADR-0001 Phase 2 gate).
+   Own-window mode on Windows is unchanged: start/stop only.
+2. **Embedded emulator display (🟡 available in the libretro mode only).** In that mode the picture is drawn in the app
+   (polled PNG frames, about 14 per second, no sound). The default own-window mode still shows a 1.5 s preview image.
 3. **Windows packaging never executed**: installer, portable zip, WebView2, engine bundling, SignPath/Authenticode.
    Releases would be **unsigned** unless credentials are supplied (the workflow says so and does not pretend).
 4. **Authentic-media validation** (Kickstart, Workbench 2.1/3.1, 500 MB HDF, XCOPY): the owner must run

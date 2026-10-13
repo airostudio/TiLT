@@ -6,6 +6,7 @@ import { useBackend } from '@/app/backend'
 import { useInterval, useLoad } from '@/lib/hooks'
 import { formatDuration } from '@/lib/format'
 import { CONFIRMED_SHORTCUTS } from './shortcuts'
+import { LiveScreen } from './LiveScreen'
 import { NO_CONTROL_FALLBACK, type EngineState } from './useEngine'
 import './emulator.css'
 
@@ -67,7 +68,7 @@ function PreviewCard({ active }: { active: boolean }) {
 }
 
 // ---------- floppies ----------
-function FloppyCard({ active }: { active: boolean }) {
+function FloppyCard({ active, embedded }: { active: boolean; embedded: boolean }) {
   const { toast } = useUi()
   const drives = useLoad(() => call<DriveView[]>('session_drives'), [])
   const media = useLoad(() => call<MediaRecord[]>('media_list'), [])
@@ -104,19 +105,21 @@ function FloppyCard({ active }: { active: boolean }) {
                   <>
                     <strong>{d.media_name ?? 'A disk that is not in your library'}</strong>
                     <div className="small muted">
-                      {d.write_protected ? 'Write protected' : 'Writable'} · {d.writing ? `writing, track ${d.track ?? '?'}` : d.motor ? `motor on, track ${d.track ?? '?'}` : 'idle'}
+                      {d.write_protected ? 'Write protected' : 'Writable'}
+                      {d.live_state && <> · {d.writing ? `writing, track ${d.track ?? '?'}` : d.motor ? `motor on, track ${d.track ?? '?'}` : 'idle'}</>}
                     </div>
                   </>
                 ) : (
-                  <span className="muted small">Empty · {d.motor ? 'motor on' : 'idle'}</span>
+                  <span className="muted small">Empty{d.live_state && <> · {d.motor ? 'motor on' : 'idle'}</>}</span>
                 )}
               </div>
-              {d.enabled && d.path && (
+              {d.enabled && !d.swappable && <span className="small muted">Fixed while running</span>}
+              {d.enabled && d.swappable && d.path && (
                 <Button size="sm" icon="eject" onClick={() => void act(() => call('session_eject', { unit: d.unit }), `Ejected DF${d.unit}:`)} aria-label={`Eject DF${d.unit}`}>
                   Eject
                 </Button>
               )}
-              {d.enabled && !d.path && (
+              {d.enabled && d.swappable && !d.path && (
                 <div className="df-insert">
                   <Select aria-label={`Insert a disk into DF${d.unit}`} value={pick[d.unit] ?? ''} onChange={(e) => setPick({ ...pick, [d.unit]: e.target.value })}>
                     <option value="">Insert…</option>
@@ -152,8 +155,14 @@ function FloppyCard({ active }: { active: boolean }) {
           There are no disk images in your library to insert. <a href="#/amiga/disks">Import some in the Disk Library</a>.
         </p>
       )}
+      {embedded && (
+        <p className="small muted" style={{ marginTop: 8 }} data-testid="embedded-df-note">
+          Running inside TiLT, only DF0: can be swapped while the machine runs (a limit of the emulator core). Disks in the other drives were chosen when the machine started. Because this mode cannot write protect a disk, only working copies can be inserted here, not untouched originals.
+        </p>
+      )}
       <p className="small muted" style={{ marginTop: 8 }}>
-        Untouched original disks are always inserted write protected. Make a working copy in the Disk Library if you want to save to a disk. <a href="#/amiga/floppies">More in Floppy Drives</a>.
+        {embedded ? 'Make a working copy in the Disk Library if you want to save to a disk.' : 'Untouched original disks are always inserted write protected. Make a working copy in the Disk Library if you want to save to a disk.'}{' '}
+        <a href="#/amiga/floppies">More in Floppy Drives</a>.
       </p>
     </Card>
   )
@@ -261,7 +270,7 @@ function SoundCard({ profileId, onError }: { profileId: string | null; onError: 
 }
 
 // ---------- saved states ----------
-function StatesCard({ onError }: { onError: (m: string) => void }) {
+function StatesCard({ onError, blockedReason }: { onError: (m: string) => void; blockedReason?: string }) {
   const { confirm } = useUi()
   const [name, setName] = useState('quicksave')
   const [busy, setBusy] = useState(false)
@@ -292,13 +301,18 @@ function StatesCard({ onError }: { onError: (m: string) => void }) {
       <div className="stack-sm">
         <TextInput label="State name" hint="Letters, numbers, spaces, - and _." value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
         <div className="ctl-group">
-          <Button size="sm" icon="snapshot" disabled={busy || !name.trim()} onClick={() => void run('save')}>
+          <Button size="sm" icon="snapshot" disabled={busy || !name.trim() || !!blockedReason} onClick={() => void run('save')}>
             Save state
           </Button>
-          <Button size="sm" disabled={busy || !name.trim()} onClick={() => void run('load')}>
+          <Button size="sm" disabled={busy || !name.trim() || !!blockedReason} onClick={() => void run('load')}>
             Load state
           </Button>
         </div>
+        {blockedReason && (
+          <p className="ctl-help" data-testid="states-blocked">
+            {blockedReason}
+          </p>
+        )}
         <p className="ctl-help">A saved state records the emulator's memory only, never the contents of floppy or hard disks.</p>
         {last && (
           <Banner tone="warning" title={`${last.what} “${name.trim()}”`}>
@@ -353,6 +367,7 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
   const { refreshSession } = useBackend()
   const [busy, setBusy] = useState<string | null>(null)
   const control = session.runtime_control
+  const embedded = session.mode === 'embedded'
   const name = session.profile_name ?? 'The machine'
 
   const ctl = useCallback(
@@ -389,7 +404,11 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
   const powerOff = async () => {
     const ok = await confirm({
       title: `Power off ${name}?`,
-      body: control ? (
+      body: embedded ? (
+        <>
+          This is like switching the machine off at the wall: anything the Amiga had not yet written to its disks is lost, and AmigaDOS may validate a hard disk the next time you start. Anything unsaved inside the Amiga is lost.
+        </>
+      ) : control ? (
         <>
           TiLT asks the emulator to quit so it can finish writing to your disks. If it has not exited after about 15 seconds it is stopped by force. A forced stop means the emulator did not exit cleanly, and AmigaDOS may validate your disks the next time you start. Anything unsaved inside the Amiga is lost.
         </>
@@ -424,7 +443,7 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
           <span className="emu-status">
             <Badge tone={session.paused ? 'warning' : 'success'}>{session.paused ? 'Paused' : 'Running'}</Badge>
             <span className="emu-meta" data-testid="emu-meta">
-              Up {formatDuration(session.uptime_s)} · process {session.pid ?? '?'}
+              Up {formatDuration(session.uptime_s)} · {embedded ? 'running inside TiLT' : `process ${session.pid ?? '?'}`}
             </span>
           </span>
         }
@@ -456,8 +475,8 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
 
       <div className="emu-grid">
         <div className="emu-col">
-          {control && <PreviewCard active />}
-          {control && <FloppyCard active />}
+          {control && (embedded ? <LiveScreen paused={!!session.paused} /> : <PreviewCard active />)}
+          {control && <FloppyCard active embedded={embedded} />}
           {control && <PerfCard active />}
           {!control && <ShortcutsCard />}
         </div>
@@ -475,13 +494,27 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
                       Pause
                     </Button>
                   )}
-                  <Button icon="reset" disabled={!!busy} onClick={() => void ctl('reset_soft')} data-testid="reset-soft">
-                    Reset
-                  </Button>
-                  <Button icon="reset" variant="danger" disabled={!!busy} onClick={() => void hardReset()} data-testid="reset-hard">
-                    Hard reset
-                  </Button>
+                  {embedded ? (
+                    <Button icon="reset" variant="danger" disabled={!!busy} onClick={() => void hardReset()} data-testid="reset-hard">
+                      Reset
+                    </Button>
+                  ) : (
+                    <>
+                      <Button icon="reset" disabled={!!busy} onClick={() => void ctl('reset_soft')} data-testid="reset-soft">
+                        Reset
+                      </Button>
+                      <Button icon="reset" variant="danger" disabled={!!busy} onClick={() => void hardReset()} data-testid="reset-hard">
+                        Hard reset
+                      </Button>
+                    </>
+                  )}
                 </div>
+                {embedded ? (
+                  <p className="ctl-help" data-testid="embedded-help">
+                    Running inside TiLT: the machine is drawn in the Screen panel. Full screen and mouse capture belong to the emulator's own window, so they are not offered here. Reset is a hard reset.
+                  </p>
+                ) : (
+                <>
                 <div className="ctl-group" role="group" aria-label="Window controls">
                   <Button icon="fullscreen" disabled={!!busy} onClick={() => void ctl('toggle_fullscreen')} data-testid="fullscreen">
                     Toggle full screen
@@ -493,12 +526,24 @@ export function RunningView({ session, engine, onStopped }: { session: SessionSt
                 <p className="ctl-help" data-testid="mouse-help">
                   <strong>Getting the mouse back:</strong> press <span className="kbd">Ctrl</span> + <span className="kbd">Alt</span> together in the emulator window, or use <em>Toggle mouse capture</em> here. To leave full screen, use <em>Toggle full screen</em> here. TiLT cannot read the current state, so these buttons switch it each time you press them.
                 </p>
+                </>
+                )}
               </div>
             </Card>
           )}
-          {control && <SoundCard profileId={session.profile_id} onError={(m) => toast(m, 'error')} />}
-          {control && <StatesCard onError={(m) => toast(m, 'error')} />}
-          {control && <ShortcutsCard />}
+          {control && !embedded && <SoundCard profileId={session.profile_id} onError={(m) => toast(m, 'error')} />}
+          {control && embedded && (
+            <Banner tone="info" title="No sound in this mode yet">
+              <span data-testid="embedded-no-sound">Running inside TiLT does not play the Amiga's sound yet. For sound, run the machine in the emulator's own window (Settings, Emulator engine).</span>
+            </Banner>
+          )}
+          {control && (
+            <StatesCard
+              onError={(m) => toast(m, 'error')}
+              blockedReason={embedded && session.hard_disks.length > 0 ? 'Saved states are not available for machines with hard disks when running inside TiLT: the emulator core crashes when it restores them. Use the emulator\'s own window, or a floppy-only machine.' : undefined}
+            />
+          )}
+          {control && !embedded && <ShortcutsCard />}
           {!control && (
             <Card title="While it runs">
               <p className="small">
