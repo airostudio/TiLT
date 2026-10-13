@@ -25,3 +25,6 @@ structure, no Commodore code. Optional real-data checks: `DMS_FIXTURE=<file.dms>
 the hard disk and the restore both enabled the real core crashes (SIGSEGV), which is why the service refuses
 saved states for machines with hard disks in embedded mode (ADR-0001). `RETRO_SHOT_DIR=<dir>` saves screenshots.
 AROS's boot picture goes dark a few seconds after start-up, so tests that need a picture act in the first seconds.
+
+## Windows package
+`TILT_WIN_CROSS=1 scripts/package-windows.sh` on Linux (needs `rustup target add x86_64-pc-windows-msvc`, `cargo install cargo-xwin`, `apt install nsis p7zip-full llvm clang lld`; the first run downloads the MSVC CRT/SDK, about 2.3 GB, and compiles everything for Windows: allow 40 minutes) or plain `scripts/package-windows.sh` on Windows. It downloads Amiberry, checks its SHA-256 against the release `SHA256SUMS`, strips `roms/` and `whdboot/`, writes the notices, builds the NSIS installer with Tauri, assembles the portable zip and runs `scripts/verify-windows-package.py` (PE headers, 64-bit, engine, notices, no proprietary media). Output: `dist-windows/` with a `SHA256SUMS`. The checks are structural: nothing is executed.

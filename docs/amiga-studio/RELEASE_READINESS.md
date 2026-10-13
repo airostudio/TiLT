@@ -78,9 +78,9 @@ Windows build) or a helper process hosting the core.
 | 9 | The user's 500 MB HDF imported and retained safely | 🟡 Logic and safety tested on synthetic RDB images (≈4–20 MB). **A real 500 MB image was not available**; import time, disk-space check and cancel behaviour at that size are unmeasured. |
 | 10 | HDF changes persist across restarts | 🟡 Persistence of *our* bookkeeping and file state across app restarts is tested. A **guest write inside a real session** (e.g. creating a file in AmigaDOS) was not automated or run. |
 | 11 | Originals never silently destroyed | ✅ tested for ROM/ADF/DMS/HDF (hash and mtime unchanged; pristine files read-only; overwrite requires consent and makes a backup). |
-| 12 | Windows app installs and runs without a dev environment | ⛔ **Not built or run.** The workflow exists but has never executed; Windows is untested. |
+| 12 | Windows app installs and runs without a dev environment | 🟡 **Built, never run.** `scripts/package-windows.sh` cross-compiled the app on Linux (MSVC target) and produced a 21.8 MiB NSIS installer and a 31 MiB portable zip; `scripts/verify-windows-package.py` unpacked both and confirmed 64-bit PE programs, the Amiberry engine, licence/source-offer files and no ROMs. **Nothing was executed on Windows**: install, launch, WebView2, the engine starting and uninstall are all unverified. |
 | 13 | Interface polished, legible, intuitive | 🟡 Designed and reviewed by screenshot (dark/light, 1360 and 900 px). No user testing, no real high-DPI/screen-reader pass. |
-| 14 | Third-party licensing obligations addressed | 🟡 Documented (`licensing.md`), checked by `cargo deny`; the installer's notices/source-offer files are specified in the workflow but **not yet generated or reviewed by counsel**. |
+| 14 | Third-party licensing obligations addressed | 🟡 Documented (`licensing.md`), checked by `cargo deny`; the installer now carries `LICENSE.txt`, `SOURCE_OFFER.txt` (TiLT commit + Amiberry tag and checksum) and `THIRD_PARTY_LICENSES.md`; the per-crate/npm licence *texts* are not generated yet and nothing was **reviewed by counsel**. |
 | 15 | Automated and manual tests pass | Automated: ✅ (above). Manual plan written, **0 rows executed**. |
 
 ## Blocked / not done (in priority order)
@@ -92,7 +92,7 @@ Windows build) or a helper process hosting the core.
    Own-window mode on Windows is unchanged: start/stop only.
 2. **Embedded emulator display (🟡 available in the libretro mode only).** In that mode the picture is drawn in the app
    (polled PNG frames, about 14 per second, no sound). The default own-window mode still shows a 1.5 s preview image.
-3. **Windows packaging never executed**: installer, portable zip, WebView2, engine bundling, SignPath/Authenticode.
+3. **Windows package built but never executed** (see criterion 12). Still open: running it on Windows, WebView2 on a clean machine, uninstall/upgrade, and signing. The installer is **unsigned** (SmartScreen will warn); `windows_signing` credentials are not available to this project.
    Releases would be **unsigned** unless credentials are supplied (the workflow says so and does not pretend).
 4. **Authentic-media validation** (Kickstart, Workbench 2.1/3.1, 500 MB HDF, XCOPY): the owner must run
    `compatibility/test-plan.md`.

@@ -4,7 +4,7 @@
 #   scripts/package-windows.sh            # on Windows (Git Bash) or any host that can build natively
 #   TILT_WIN_CROSS=1 scripts/package-windows.sh   # on Linux/macOS: cross-compile with cargo-xwin
 #
-# Needs: node 22, rust (+ target x86_64-pc-windows-msvc for cross builds), python3, curl, unzip, 7z,
+# Needs: node 22, rust (+ target x86_64-pc-windows-msvc for cross builds), python3, curl, 7z,
 #        makensis (cross builds only; apt install nsis), cargo-xwin (cross builds only).
 # Output: dist-windows/ (installer, portable zip, SHA256SUMS, manifest). Nothing is signed: see the notes printed
 # at the end. No ROM, Workbench or other proprietary media is ever included; the build fails if any is found.
@@ -37,7 +37,7 @@ rm -rf "$cache/engine-src"
 # keep the tracked placeholder README.txt in each resource folder; clear everything else
 mkdir -p "$cache/engine-src" "$res/engine"
 find "$res/engine" -mindepth 1 ! -name README.txt -delete
-unzip -q -o "$cache/$zipname" -d "$cache/engine-src"
+python3 -m zipfile -e "$cache/$zipname" "$cache/engine-src"
 cp -R "$cache"/engine-src/*/. "$res/engine/"
 # Settings go to per-user folders, not next to the installed program.
 rm -f "$res/engine/amiberry.portable"

@@ -46,6 +46,6 @@ what has **not** been verified (notably anything on real Windows hardware or wit
 
 ## Phase 8: production hardening
 | CI (lint, types, tests, e2e, licence checks) | 🟡 | workflows written; **first run on GitHub not yet observed** |
-| Windows NSIS installer + portable zip | 🟡 | workflow written; produced and installer-tested only on a Windows runner (not run here) |
+| Windows NSIS installer + portable zip | 🟡 | built and structurally verified (cross-compiled on Linux, `scripts/package-windows.sh`); never executed on Windows; unsigned |
 | Code signing | ⬜ | only when credentials exist; releases are labelled unsigned otherwise |
 | Release-readiness report | ✅ | `RELEASE_READINESS.md` (candid) |

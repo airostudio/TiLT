@@ -16,3 +16,12 @@
 
 What Amiga Studio does **not** include: Kickstart ROMs, Workbench, XCOPY or any Amiga software. ADF images
 cannot preserve copy protection or non-standard tracks.
+
+## Installing on Windows
+Download `TiLT_<version>_x64-setup.exe` (or the portable zip) from the release page and compare its SHA-256 with `SHA256SUMS`.
+The installer is **not signed yet**, so Windows SmartScreen will say "Windows protected your PC": choose *More info*, then
+*Run anyway*, only if you downloaded it from the project's own release page. It installs for the current user (no
+administrator rights), includes Amiberry (the emulator engine) and **no ROMs**: import your own Kickstart in the ROM Library.
+It needs Microsoft Edge WebView2, which Windows 10/11 normally already has; if it is missing the installer fetches it.
+The portable zip keeps all your data in its own folder (`portable.flag`). This Windows build has been verified only
+structurally so far; it has not yet been run on a Windows machine by the project.
