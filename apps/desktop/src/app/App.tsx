@@ -72,7 +72,7 @@ function Routes({ parts }: { parts: string[] }) {
       {offline && (
         <div style={{ padding: 16 }}>
           <Banner tone="error" title="The TiLT backend is not running">
-            The interface could not reach its backend. In the desktop app this should never happen; in development start <code>amiga-devserver</code>.
+            The interface could not reach its backend. In the desktop app this should never happen; in development start <code>tilt-local</code>.
           </Banner>
         </div>
       )}

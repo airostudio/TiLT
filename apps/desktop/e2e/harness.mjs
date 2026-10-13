@@ -1,8 +1,8 @@
-// Minimal e2e harness: real backend (amiga-devserver) + real built UI + real Chromium.
+// Minimal e2e harness: real backend (tilt-local) + real built UI + real Chromium.
 // Usage in a spec file:
 //   import { test, expect, fixtures } from './harness.mjs'
 //   test('name', async ({ page, base, api, dir, app }) => { ... })
-// Run:  npm run build && cargo build -p amiga-devserver && node e2e/run.mjs [filter]
+// Run:  npm run build && cargo build -p tilt-local && node e2e/run.mjs [filter]
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:net'
 import { mkdtempSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs'
@@ -14,7 +14,8 @@ import { chromium } from 'playwright-core'
 const here = path.dirname(fileURLToPath(import.meta.url))
 export const desktopDir = path.resolve(here, '..')
 const repo = path.resolve(desktopDir, '../..')
-const SERVER = process.env.AMIGA_DEVSERVER ?? path.join(repo, 'target/debug/amiga-devserver')
+const SERVER = process.env.TILT_LOCAL ?? path.join(repo, 'target/debug/tilt-local')
+export const TOKEN = 'e2e-token-0123456789abcdef'
 
 export const tests = []
 export const test = (name, fn, opts = {}) => tests.push({ name, fn, env: opts.env })
@@ -49,21 +50,21 @@ function findChromium() {
 export async function startBackend(extraEnv = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'amiga-e2e-'))
   const port = await freePort()
-  const proc = spawn(SERVER, ['--root', path.join(root, 'Studio'), '--config-dir', path.join(root, 'config'), '--port', String(port), '--static', process.env.E2E_DIST ?? path.join(desktopDir, 'dist')], {
-    env: { ...process.env, XDG_RUNTIME_DIR: root, ...extraEnv },
-    stdio: ['ignore', 'inherit', 'inherit'],
+  const proc = spawn(SERVER, ['--root', path.join(root, 'Studio'), '--no-open', '--token', TOKEN, '--port', String(port), '--ui', process.env.E2E_DIST ?? path.join(desktopDir, 'dist')], {
+    env: { ...process.env, XDG_RUNTIME_DIR: root, XDG_CONFIG_HOME: path.join(root, 'config'), ...extraEnv },
+    stdio: ['ignore', 'ignore', 'inherit'],
   })
   const base = `http://127.0.0.1:${port}`
   for (let i = 0; i < 100; i++) {
     try {
-      await fetch(`${base}/api/app_info`, { method: 'POST', body: '{}' })
+      await fetch(`${base}/`)
       break
     } catch {
       await new Promise((r) => setTimeout(r, 50))
     }
   }
   const api = async (cmd, args = {}) => {
-    const r = await (await fetch(`${base}/api/${cmd}`, { method: 'POST', body: JSON.stringify(args) })).json()
+    const r = await (await fetch(`${base}/api/${cmd}`, { method: 'POST', headers: { 'X-TiLT-Token': TOKEN }, body: JSON.stringify(args) })).json()
     if (r.error) throw new Error(`${cmd}: ${r.error.message}`)
     return r.ok
   }
@@ -243,8 +244,12 @@ export async function runAll(filter) {
     try {
       await t.fn({
         page,
+        consoleErrors: errors,
         ...backend,
-        app: (hash = '') => page.goto(`${backend.base}/#/${hash}`),
+        app: async (hash = '') => {
+          // first visit goes through the token link (sets the strict cookie), later ones reuse it
+          await page.goto(`${backend.base}/?token=${TOKEN}#/${hash}`)
+        },
         shot: (n) => page.screenshot({ path: path.join(artifacts, `${n}.png`) }),
       })
       if (errors.length) throw new Error(`browser console errors:\n${errors.join('\n')}`)

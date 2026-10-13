@@ -74,7 +74,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
-      - run: cargo build -p amiga-devserver
+      - run: cargo build -p tilt-local
         working-directory: .
       - run: npx playwright-core install --with-deps chromium
       - name: Browser e2e

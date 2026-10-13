@@ -7,7 +7,7 @@
 | Real-engine end-to-end | `DISPLAY=:99 AMIBERRY_BIN=… AROS_ROM=… AROS_EXT=… cargo test -p amiga-core -p amiga-service --test engine_e2e --test engine_service -- --nocapture` | Linux/macOS Amiberry 8.4.0, a display (`xvfb-run`), the AROS ROMs that ship with Amiberry |
 | Engine capability matrix | `cargo run -p amiga-cli -- engine-matrix <amiberry>` | Amiberry |
 | UI types/lint/unit | `cd apps/desktop && npm run typecheck && npm run lint && npm test` | Node 22 |
-| Browser e2e (real backend + real UI) | `npm run build && cargo build -p amiga-devserver && node e2e/run.mjs [filter]` | Chromium (`PLAYWRIGHT_BROWSERS_PATH` or `CHROMIUM_PATH`) |
+| Browser e2e (real backend + real UI) | `npm run build && cargo build -p tilt-local && node e2e/run.mjs [filter]` | Chromium (`PLAYWRIGHT_BROWSERS_PATH` or `CHROMIUM_PATH`) |
 | Live-emulator browser e2e | same, plus `AMIBERRY_BIN`, `AROS_ROM`, `AROS_EXT`, `DISPLAY` | as above |
 | Tauri shell | `cd apps/desktop/src-tauri && cargo check` | WebKitGTK dev packages (Linux) |
 | Proprietary-media guard | `python3 scripts/check-no-proprietary.py <dirs>` | |

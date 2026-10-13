@@ -3,7 +3,7 @@
 The UI talks to the backend through **one** allow-listed entry point:
 `Service::dispatch(cmd, args) -> Result<Value, {code, message}>`
 (`crates/amiga-service/src/lib.rs`). In the desktop app it is the single Tauri command
-`amiga({cmd, args})`; in a browser (dev / e2e) it is `POST /api/<cmd>` on `amiga-devserver`.
+`amiga({cmd, args})`; in a browser (dev / e2e) it is `POST /api/<cmd>` on `tilt-local` (token required).
 TypeScript wrappers: `apps/desktop/src/api/client.ts` (`call`, `runJob`, `waitForJob`, `cancelJob`),
 types: `apps/desktop/src/api/types.ts`.
 
@@ -87,6 +87,9 @@ insufficient_space locked unsafe not_found already_exists cancelled emulator uns
 
 `session_*` control commands return `unsupported` on builds without a control channel (official
 Windows builds of Amiberry: see ADR-0001). The UI must then explain and fall back to "restart to apply".
+
+## Local web mode only
+`fs_list {path?}` → `{path, parent, home, roots, entries[{name,is_dir,size}], truncated}`: folder listing for the in-app file browser (names and sizes only).
 
 ## Jobs
 `job_get {id}` → `JobView`, `jobs_list`, `job_cancel {id}`.

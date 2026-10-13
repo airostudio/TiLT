@@ -19,10 +19,12 @@ hard disk images. It never bundles ROMs or Workbench, protects your originals, a
 platform can and cannot do. Start with `docs/amiga-studio/README.md`; honest status and known gaps are in
 `docs/amiga-studio/RELEASE_READINESS.md`.
 
+**Use it in your browser (local, private):** `scripts/tilt-local.sh` (see `docs/amiga-studio/user-guide/run-in-browser.md`).
+
 ```bash
 cargo test --workspace                       # core + service tests
 cd apps/desktop && npm ci && npm run build   # UI
-cargo build -p amiga-devserver && node e2e/run.mjs   # browser e2e against the real backend
+cargo build -p tilt-local && node e2e/run.mjs   # browser e2e against the real backend
 ```
 
 ## Features

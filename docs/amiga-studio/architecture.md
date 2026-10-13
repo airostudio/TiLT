@@ -25,7 +25,7 @@
 | `crates/amiga-core` | All Amiga logic. Pure Rust, no UI, no Tauri. 145 tests + env-gated real-engine tests. |
 | `crates/amiga-service` | One entry point `Service::dispatch(cmd, args)`; background jobs; session supervisor; Rooms/launcher registry. |
 | `crates/amiga-cli` | `amiga-studio-cli`: inspect ROM/ADF/DMS/HDF, probe the engine, generate the engine matrix. |
-| `crates/amiga-devserver` | Dev/CI only: HTTP bridge so the real UI can be tested in a browser against the real backend. Never shipped. |
+| `crates/tilt-local` | Run the UI in a normal browser on the same machine: 127.0.0.1-only server, per-run token + Host/Origin checks, in-app file browser. Also the harness for browser e2e. Not a hosted service. |
 | `apps/desktop` | React/Vite UI (`src`), Playwright-style e2e (`e2e`), Tauri shell (`src-tauri`, its own workspace). |
 | `docs/amiga-studio` | ADRs, licensing, plan, readiness report, compatibility evidence, guides. |
 | `scripts` | Guards and packaging helpers. |

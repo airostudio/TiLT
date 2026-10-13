@@ -4,15 +4,20 @@ Date: 2026-10-13 · Branch `claude/upbeat-dirac-0mmphw` · Engine: Amiberry 8.4.
 ran the tests; nothing below is invented. **Verdict: NOT ready for a public Windows release.** A working,
 well-tested foundation exists; the items in "Blocked / not done" must be closed first.
 
+## Run it in your browser (local)
+
+`scripts/tilt-local.sh` serves the same UI and backend to your normal browser on `127.0.0.1` only, with a per-run token
+(`user-guide/run-in-browser.md`). Verified here by running the script as a user would and by e2e. The public Vercel page has no backend.
+
 ## What was run (all in a Linux container with Xvfb; no Windows machine, no authentic ROMs)
 
 | Suite | Result |
 |---|---|
-| `cargo test --workspace` (core + service + CLI) | **145 passed**, 0 failed |
+| `cargo test --workspace` (core + service + CLI) | **150 passed**, 0 failed |
 | Real-engine Rust e2e (`engine_e2e`, `engine_service`) with live Amiberry 8.4.0 + AROS | **2 passed** (≈14 s each) |
 | Engine capability matrix (`amiga-studio-cli engine-matrix`) | **44 / 44 configurations accepted** with no engine corrections |
 | UI unit tests (vitest) | **35 passed** |
-| Browser e2e: real UI + real backend + Chromium | **76 passed**, 0 failed, 0 retries (includes **1 live-emulator test** driving real Amiberry/AROS through the UI) |
+| Browser e2e: real UI + real backend + Chromium | **79 passed**, 0 failed, 0 retries (includes **1 live-emulator test** driving real Amiberry/AROS through the UI, and 3 tests of the local-browser mode: token/Host/Origin protection, strict cookie, in-app file browser) |
 | `cargo clippy -D warnings`, `cargo fmt --check`, `tsc`, `eslint --max-warnings 0` | clean |
 | `cargo deny check licenses bans sources` (both Cargo workspaces) | ok |
 | Tauri 2 shell: `cargo build --release` on Linux, launched under Xvfb, UI loaded data over the real IPC | works (`compatibility/evidence/desktop-shell-linux-webkitgtk.png`) |
@@ -53,7 +58,7 @@ running a live session).
 4. **Authentic-media validation** (Kickstart, Workbench 2.1/3.1, 500 MB HDF, XCOPY): the owner must run
    `compatibility/test-plan.md`.
 5. **GitHub Actions workflows were written but have not been observed running.** A Vercel preview exists for the branch;
-   it only hosts the static "web preview" page (the app needs its native backend).
+   it only hosts the static "web preview" page (the app needs its native backend; use `tilt-local` instead).
 6. Not implemented: keyboard-map editor, gamepad profile UI, 68060, NTSC/audio-quality evaluation, DrawBridge/real
    floppy hardware, Amiga-side disk-copy automation, moving existing data when the storage location changes
    (the location can be changed; data is not moved), live write-protect toggle on a running disk (the UI

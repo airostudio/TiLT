@@ -10,8 +10,14 @@ const shots: { file: string; title: string; text: string }[] = [
 
 /** Shown when the page is opened in a plain browser with no TiLT backend (e.g. a web preview). */
 export function OfflinePreview() {
+  const local = ['127.0.0.1', 'localhost'].includes(window.location.hostname)
   return (
     <Page>
+      {local && (
+        <Banner tone="warning" title="Open TiLT with its private link">
+          This page is served by <code>tilt-local</code> on your computer, but your browser did not present its access token. Use the full link printed in the terminal where you started it (it ends with <code>?token=…</code>).
+        </Banner>
+      )}
       <div className="stack">
         <div>
           <Badge tone="warning">Web preview</Badge>

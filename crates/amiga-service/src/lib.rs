@@ -5,6 +5,7 @@
 //! matched in `dispatch` does not exist as far as the UI is concerned: the front
 //! end can never run arbitrary host commands, only these operations.
 
+mod fsbrowse;
 mod jobs;
 mod session;
 mod systems;
@@ -150,6 +151,7 @@ impl Service {
                 j(true)
             }
             "recover" => j(lib.recover()?),
+            "fs_list" => j(fsbrowse::list(so(a, "path"))?),
             "orphans" => j(lib.find_orphans()?.iter().map(|p| p.display().to_string()).collect::<Vec<_>>()),
 
             // ---------- rooms & external systems ----------

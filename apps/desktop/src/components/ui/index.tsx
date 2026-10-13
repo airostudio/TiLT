@@ -17,6 +17,7 @@ import {
 import { Icon, type IconName } from './Icon'
 import { canBrowse, onFilesDropped, pickPaths } from '@/lib/files'
 import { cancelJob } from '@/api/client'
+import { FileBrowser } from './FileBrowser'
 import type { JobView } from '@/api/types'
 
 export { Icon } from './Icon'
@@ -361,22 +362,26 @@ export function PathInput({
   placeholder?: string
 }) {
   const id = useId()
+  const [browsing, setBrowsing] = useState(false)
   return (
     <Field label={label} hint={hint} htmlFor={id}>
       <div className="row-nowrap">
         <input id={id} className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? (directory ? 'Folder path' : 'File path')} spellCheck={false} />
-        {canBrowse() && (
-          <Button
-            icon="folder"
-            onClick={async () => {
+        <Button
+          icon="folder"
+          onClick={async () => {
+            if (canBrowse()) {
               const r = await pickPaths({ directory, extensions })
               if (r && r[0]) onChange(r[0])
-            }}
-          >
-            Browse…
-          </Button>
-        )}
+            } else setBrowsing(true)
+          }}
+        >
+          Browse…
+        </Button>
       </div>
+      {browsing && (
+        <FileBrowser mode={directory ? 'dir' : 'file'} extensions={extensions} start={value} title={directory ? 'Choose a folder' : 'Choose a file'} onPick={(p) => p[0] && onChange(p[0])} onClose={() => setBrowsing(false)} />
+      )}
     </Field>
   )
 }
@@ -399,6 +404,7 @@ export function DropZone({
 }) {
   const [over, setOver] = useState(false)
   const [typed, setTyped] = useState('')
+  const [browsing, setBrowsing] = useState(false)
   const cb = useRef(onPaths)
   cb.current = onPaths
   useEffect(() => {
@@ -447,8 +453,12 @@ export function DropZone({
             <Button type="submit" variant="primary" disabled={disabled || !typed.trim()}>
               Import
             </Button>
+            <Button type="button" icon="folder" disabled={disabled} onClick={() => setBrowsing(true)}>
+              Browse…
+            </Button>
           </form>
         )}
+        {browsing && <FileBrowser mode="file" multiple={multiple} extensions={extensions} title="Choose files" onPick={(p) => p.length && onPaths(p)} onClose={() => setBrowsing(false)} />}
       </div>
     </div>
   )

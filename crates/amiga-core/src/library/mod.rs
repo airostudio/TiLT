@@ -95,6 +95,29 @@ impl Layout {
         Ok(())
     }
 
+    /// Per-user config folder (holds only the storage-location pointer), e.g. `~/.config/amiga-studio`.
+    pub fn default_config_dir() -> PathBuf {
+        #[cfg(windows)]
+        {
+            if let Some(p) = std::env::var_os("APPDATA") {
+                return PathBuf::from(p).join("AmigaStudio");
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            if let Some(h) = std::env::var_os("HOME") {
+                return PathBuf::from(h).join("Library/Application Support/AmigaStudio-config");
+            }
+        }
+        if let Some(x) = std::env::var_os("XDG_CONFIG_HOME").filter(|v| !v.is_empty()) {
+            return PathBuf::from(x).join("amiga-studio");
+        }
+        if let Some(h) = std::env::var_os("HOME") {
+            return PathBuf::from(h).join(".config/amiga-studio");
+        }
+        PathBuf::from(".amiga-studio-config")
+    }
+
     const POINTER_FILE: &'static str = "storage-root.txt";
 
     /// Where the user-chosen storage location is remembered (outside the library itself,

@@ -23,7 +23,8 @@ export function BackendProvider({ children, pollSession }: { children: ReactNode
       setInfo(await call<AppInfo>('app_info'))
       setOffline(false)
     } catch (e) {
-      if ((e as { code?: string }).code === 'offline') setOffline(true)
+      const code = (e as { code?: string }).code
+      if (code === 'offline' || code === 'unauthorized' || code === 'forbidden') setOffline(true)
     }
   }, [])
   const refreshSession = useCallback(async () => {
