@@ -1,0 +1,84 @@
+/* Shared by the Disk Library and Floppy Drives screens. Tokens only. */
+.dk-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.dk-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 340px;
+  overflow: auto;
+  background: var(--bg-elev);
+}
+.dk-group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 12px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+.dk-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.dk-row:last-child {
+  border-bottom: 0;
+}
+.dk-row:hover {
+  background: var(--surface-hover);
+}
+.dk-row.selected {
+  background: var(--accent-soft);
+}
+.dk-row.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.dk-row:focus-within {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.dk-row input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.dk-row .dk-name {
+  font-weight: 600;
+  color: var(--text);
+}
+.dk-row .dk-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dk-row .dk-why {
+  color: var(--warning);
+  font-size: var(--fs-xs);
+}
+.dk-search {
+  position: relative;
+}
+.dk-empty {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}

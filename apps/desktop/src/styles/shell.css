@@ -1,0 +1,267 @@
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  z-index: 300;
+}
+.skip-link:focus {
+  left: 8px;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-decoration: none !important;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), #8b7bff);
+  color: #fff;
+}
+.brand-name {
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-lg);
+}
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+}
+.crumbs a {
+  color: var(--text-muted);
+}
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- rooms ---------- */
+.hero {
+  padding: var(--space-6) var(--space-6) var(--space-3);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.hero h1 {
+  font-size: var(--fs-2xl);
+}
+.rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-6) var(--space-6);
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.room-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  padding: var(--space-6);
+  min-height: 280px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--text);
+  text-decoration: none !important;
+  transition: transform var(--transition), border-color var(--transition);
+  box-shadow: var(--shadow);
+}
+.room-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+}
+.room-card.home {
+  background: var(--room-home);
+}
+.room-card.pinball {
+  background: var(--room-pinball);
+}
+.room-card h2 {
+  font-size: var(--fs-xl);
+}
+.room-card .room-systems {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(8, 14, 28, 0.38);
+  color: #eef3ff;
+  font-size: var(--fs-sm);
+  font-weight: 560;
+  backdrop-filter: blur(6px);
+}
+:root[data-theme='light'] .chip {
+  background: rgba(255, 255, 255, 0.7);
+  color: #172033;
+}
+.system-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 190px;
+}
+.system-card .system-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ---------- Amiga Studio shell ---------- */
+.studio {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  min-height: 0;
+}
+.studio-nav {
+  position: sticky;
+  top: 52px;
+  align-self: start;
+  height: calc(100vh - 52px);
+  overflow: auto;
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--border);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.studio-nav h2 {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  padding: 4px 12px 8px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 560;
+  text-decoration: none !important;
+  border: 1px solid transparent;
+}
+.nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.nav-item[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.nav-item .nav-badge {
+  margin-left: auto;
+}
+.studio-main {
+  min-width: 0;
+}
+@media (max-width: 860px) {
+  .studio {
+    grid-template-columns: 1fr;
+  }
+  .studio-nav {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .studio-nav h2 {
+    display: none;
+  }
+  .nav-item span.label {
+    white-space: nowrap;
+  }
+  .page {
+    padding: var(--space-4);
+  }
+  .rooms {
+    padding: var(--space-4);
+  }
+}
+
+/* emulator display placeholder + drive slots */
+.screen-frame {
+  background: #000;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  image-rendering: pixelated;
+}
+.screen-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+.drive-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 210px;
+}
+.drive-slot .led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface-3);
+}
+.drive-slot .led.read {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+.drive-slot .led.write {
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger);
+}

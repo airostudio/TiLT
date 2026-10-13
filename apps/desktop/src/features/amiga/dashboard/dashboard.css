@@ -1,0 +1,8 @@
+.dash-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+.dash-grid .kv {
+  grid-template-columns: minmax(84px, max-content) 1fr;
+}

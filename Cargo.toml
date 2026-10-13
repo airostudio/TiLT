@@ -1,0 +1,16 @@
+# Cargo workspace for the Rust parts of TiLT (Amiga Studio core + CLI).
+# The Tauri desktop shell (apps/desktop/src-tauri) is intentionally its own
+# workspace so `cargo test` here does not need the GTK/WebView system libraries.
+[workspace]
+resolver = "2"
+members = ["crates/amiga-core", "crates/amiga-cli", "crates/amiga-service", "crates/tilt-local"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+rust-version = "1.85"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4

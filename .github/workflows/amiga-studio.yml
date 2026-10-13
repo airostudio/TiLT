@@ -1,0 +1,176 @@
+name: Amiga Studio
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['crates/**', 'apps/desktop/**', 'Cargo.*', 'rustfmt.toml', 'deny.toml', 'scripts/**', 'docs/amiga-studio/**', '.github/workflows/amiga-studio.yml']
+  pull_request:
+    paths: ['crates/**', 'apps/desktop/**', 'Cargo.*', 'rustfmt.toml', 'deny.toml', 'scripts/**', 'docs/amiga-studio/**', '.github/workflows/amiga-studio.yml']
+  workflow_dispatch:
+    inputs:
+      package_windows:
+        description: 'Build the Windows installer and portable zip'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  AMIBERRY_VERSION: '8.4.0'
+
+jobs:
+  rust:
+    name: Rust (fmt, clippy, tests, real-engine e2e)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: 'rustfmt, clippy' }
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo test --workspace
+      - name: Fetch Amiberry (checksum verified) for the real-engine tests
+        run: |
+          set -euo pipefail
+          base="https://github.com/BlitterStudio/amiberry/releases/download/v${AMIBERRY_VERSION}"
+          mkdir -p "$RUNNER_TEMP/ami" && cd "$RUNNER_TEMP/ami"
+          curl -fsSL -O "$base/amiberry-ubuntu-24.04-amd64.zip"
+          curl -fsSL -O "$base/SHA256SUMS"
+          grep ' amiberry-ubuntu-24.04-amd64.zip$' SHA256SUMS | sha256sum -c -
+          unzip -q amiberry-ubuntu-24.04-amd64.zip
+          dpkg-deb -x amiberry_*.deb root
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libserialport0 libportmidi0 libmpeg2-4 libenet7 libpcap0.8t64 libopengl0 libsdl2-2.0-0 libsdl2-image-2.0-0
+          echo "AMIBERRY_BIN=$PWD/root/usr/bin/amiberry" >> "$GITHUB_ENV"
+          echo "AROS_ROM=$PWD/root/usr/share/amiberry/roms/aros-rom.bin" >> "$GITHUB_ENV"
+          echo "AROS_EXT=$PWD/root/usr/share/amiberry/roms/aros-ext.bin" >> "$GITHUB_ENV"
+      - name: Engine capability matrix must stay green
+        run: |
+          cargo run -q -p amiga-cli -- engine-matrix "$AMIBERRY_BIN" > matrix.md
+          ! grep -q '| adjusted |' matrix.md || { cat matrix.md; echo "engine adjusted a generated config"; exit 1; }
+        env: { XDG_RUNTIME_DIR: /tmp }
+      - name: Real-engine end-to-end (AROS ROM, Xvfb)
+        run: xvfb-run -a cargo test -p amiga-core -p amiga-service --test engine_e2e --test engine_service -- --nocapture
+        env: { E2E_ARTIFACT_DIR: '${{ runner.temp }}/e2e-artifacts' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: engine-e2e, path: '${{ runner.temp }}/e2e-artifacts', if-no-files-found: ignore }
+
+  web:
+    name: Web (types, lint, unit, browser e2e against the real backend)
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: apps/desktop } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/desktop/package-lock.json }
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: cargo build -p tilt-local
+        working-directory: .
+      - run: npx playwright-core install --with-deps chromium
+      - name: Browser e2e
+        run: node e2e/run.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshots, path: apps/desktop/e2e/artifacts, if-no-files-found: ignore }
+
+  tauri-shell:
+    name: Tauri shell compiles (Linux WebKitGTK)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: clippy }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'apps/desktop/src-tauri' }
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev
+      - run: mkdir -p apps/desktop/dist && echo '<html></html>' > apps/desktop/dist/index.html
+      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml -- -D warnings
+
+  licenses:
+    name: Licences and proprietary-media guard
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with: { command: check, arguments: '--manifest-path Cargo.toml' }
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with: { command: check, arguments: '--manifest-path apps/desktop/src-tauri/Cargo.toml' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: npm production licences
+        working-directory: apps/desktop
+        run: |
+          npm ci --omit=dev --ignore-scripts
+          npx --yes license-checker-rseidelsohn --production --onlyAllow 'MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;MPL-2.0;CC0-1.0;BlueOak-1.0.0;Unlicense' --summary
+      - run: python3 -I scripts/check-no-proprietary.py crates apps docs scripts
+
+  windows-package:
+    name: Windows installer and portable zip
+    if: github.event_name == 'workflow_dispatch' && inputs.package_windows || startsWith(github.ref, 'refs/tags/v')
+    needs: [rust, web, tauri-shell, licenses]
+    runs-on: windows-latest
+    defaults: { run: { shell: bash } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: 'apps/desktop/src-tauri' }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/desktop/package-lock.json }
+      - name: Fetch Amiberry portable build (checksum verified)
+        run: |
+          set -euo pipefail
+          base="https://github.com/BlitterStudio/amiberry/releases/download/v${AMIBERRY_VERSION}"
+          f="amiberry-v${AMIBERRY_VERSION}-windows-x64-portable.zip"
+          curl -fsSL -O "$base/$f"; curl -fsSL -O "$base/SHA256SUMS"
+          grep " $f\$" SHA256SUMS | sha256sum -c -
+          mkdir -p apps/desktop/src-tauri/resources/engine
+          7z x -y "$f" -o"$RUNNER_TEMP/amiberry" >/dev/null
+          cp -R "$RUNNER_TEMP"/amiberry/*/. apps/desktop/src-tauri/resources/engine/
+          # use per-user settings folders instead of writing next to the installed engine
+          rm -f apps/desktop/src-tauri/resources/engine/amiberry.portable
+          # never ship ROMs, even the open-source AROS ones: users import their own
+          rm -rf apps/desktop/src-tauri/resources/engine/roms/*
+          python3 scripts/check-no-proprietary.py apps/desktop/src-tauri/resources
+      - run: npm ci
+        working-directory: apps/desktop
+      - name: Build installer (NSIS)
+        run: npx tauri build --bundles nsis
+        working-directory: apps/desktop
+      - name: Build portable zip
+        run: |
+          set -euo pipefail
+          out=dist-portable/TiLT-portable; mkdir -p "$out"
+          cp apps/desktop/src-tauri/target/release/tilt-desktop.exe "$out/TiLT.exe"
+          cp -R apps/desktop/src-tauri/resources/engine "$out/engine"
+          touch "$out/portable.flag"
+          cp LICENSE "$out/LICENSE.txt"; cp docs/amiga-studio/licensing.md "$out/THIRD_PARTY_AND_SOURCE_OFFER.md"
+          python3 scripts/check-no-proprietary.py dist-portable
+          (cd dist-portable && 7z a -tzip ../TiLT-portable-win64.zip TiLT-portable >/dev/null)
+      - name: Code signing
+        env: { SIGN_CERT: '${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}' }
+        run: |
+          if [ -z "$SIGN_CERT" ]; then
+            echo "::warning::No signing credentials configured: these artifacts are UNSIGNED."
+            echo "UNSIGNED" > UNSIGNED.txt
+          else
+            echo "signing is configured but the signing step must be completed for your certificate" ; exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tilt-windows-x64
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+            TiLT-portable-win64.zip
+            UNSIGNED.txt
+          if-no-files-found: error
