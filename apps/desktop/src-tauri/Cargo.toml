@@ -1,0 +1,28 @@
+[package]
+name = "tilt-desktop"
+version = "0.1.0"
+description = "TiLT desktop shell: Rooms front end and Amiga Studio"
+edition = "2021"
+license = "GPL-3.0-or-later"
+rust-version = "1.85"
+publish = false
+
+# Standalone workspace: building this needs the platform WebView libraries
+# (WebView2 on Windows, WebKitGTK on Linux), so it is kept out of the root workspace.
+[workspace]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+amiga-service = { path = "../../../crates/amiga-service" }
+amiga-core = { path = "../../../crates/amiga-core" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

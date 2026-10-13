@@ -1,0 +1,406 @@
+/* My Amigas: machine cards and the editor. Tokens only; no hard-coded colours. */
+
+/* ---------- list ---------- */
+.machine-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.machine-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.machine-card .mc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.machine-card .mc-head h2 {
+  font-size: var(--fs-md);
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.machine-card .mc-sub {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.machine-card .kv {
+  grid-template-columns: 84px 1fr;
+}
+.machine-card .mc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+.machine-card.running {
+  border-color: var(--success);
+}
+.mc-notes {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.mc-reason {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+/* ---------- new machine modal ---------- */
+.preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 46vh;
+  overflow: auto;
+  padding: 2px;
+}
+.preset-option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.preset-option:hover {
+  border-color: var(--border-strong);
+}
+.preset-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.preset-option input {
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.preset-option:focus-within {
+  box-shadow: var(--focus);
+}
+.preset-option strong {
+  display: block;
+}
+
+/* ---------- editor layout ---------- */
+.editor-page {
+  max-width: 1400px;
+}
+.editor-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.chip.chip-strong {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.editor-side:focus {
+  outline: none;
+}
+.editor-side:focus-visible {
+  box-shadow: var(--focus);
+}
+.chip:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--space-5);
+  align-items: start;
+}
+.editor-side {
+  position: sticky;
+  top: 68px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: calc(100vh - 84px);
+  overflow: auto;
+}
+.side-card .card-title {
+  margin-bottom: var(--space-2);
+}
+@media (max-width: 1100px) {
+  .editor-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-side {
+    position: static;
+    max-height: none;
+    order: -1;
+  }
+}
+.editor-section {
+  scroll-margin-top: 68px;
+}
+.editor-section:focus {
+  outline: none;
+}
+.editor-section:focus-visible {
+  box-shadow: var(--focus);
+}
+.section-intro {
+  margin: calc(var(--space-2) * -1) 0 var(--space-3);
+  max-width: 78ch;
+}
+
+/* ---------- fields and their messages ---------- */
+.fgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.fgroup > .hint {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+.field-issues {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fi {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+.fi svg {
+  flex: none;
+  margin-top: 1px;
+}
+.fi.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.fi.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.fi.info {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+[aria-invalid='true'] {
+  border-color: var(--danger) !important;
+}
+.advanced-box {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  width: fit-content;
+  max-width: 100%;
+}
+.seg {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: calc(var(--radius) - 3px);
+  font-size: var(--fs-sm);
+  font-weight: 560;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.seg input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+.seg.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.seg:focus-within {
+  box-shadow: var(--focus);
+}
+.rom-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.drive-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.drive-row {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.mode-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+.mode-card {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+.mode-card:hover {
+  background: var(--surface-hover);
+}
+.mode-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.mode-card:focus-within {
+  box-shadow: var(--focus);
+}
+.mode-card input {
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+.mode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mode-card-body strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+}
+
+/* ---------- validation summary ---------- */
+.issue-group h3 {
+  font-size: var(--fs-sm);
+  margin: var(--space-2) 0 var(--space-1);
+}
+.issue-group.error h3 {
+  color: var(--danger);
+}
+.issue-group.warning h3 {
+  color: var(--warning);
+}
+.issue-group.info h3 {
+  color: var(--accent);
+}
+.issue-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.issue-link {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 0;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--surface-2);
+}
+.issue-link:hover {
+  background: var(--surface-3);
+}
+.issue-link svg {
+  flex: none;
+  margin-top: 1px;
+}
+.issue-group.error .issue-link svg {
+  color: var(--danger);
+}
+.issue-group.warning .issue-link svg {
+  color: var(--warning);
+}
+.issue-group.info .issue-link svg {
+  color: var(--accent);
+}
+.issue-where {
+  font-weight: 650;
+  margin-right: 4px;
+}
+
+/* the editor column is narrower than a full page, so let two fields sit side by side sooner */
+.editor-section .grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+.editor-section .grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}

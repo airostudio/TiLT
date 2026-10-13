@@ -408,6 +408,19 @@ impl Service {
         }
     }
 
+    /// Is an emulator process currently running?
+    pub fn machine_running(&self) -> bool {
+        self.sessions.active.lock().unwrap().as_mut().is_some_and(|a| a.session.is_running())
+    }
+
+    /// Stop any running machine safely (clean quit, flush disks, release locks).
+    /// Call from the application's exit path.
+    pub fn shutdown(&self) {
+        if let Some(a) = self.sessions.active.lock().unwrap().take() {
+            let _ = session::stop(&self.lib, a);
+        }
+    }
+
     fn with_session<T>(&self, f: impl FnOnce(&session::ActiveSession) -> Result<T>) -> Result<T> {
         let g = self.sessions.active.lock().unwrap();
         match g.as_ref() {

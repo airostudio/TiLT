@@ -6,6 +6,25 @@ TiLT is a unified pinball emulator that combines the best features from PinMAME,
 
 ![TiLT Banner](docs/images/tilt-banner.png)
 
+## NEW: Rooms front end and Amiga Studio
+
+TiLT now has a desktop front end (Tauri 2 + React) organised into **Rooms**:
+
+* **Home Arcade**: **Amiga Studio** (built in, below) plus launchers for your own PlayStation 2 and Intellivision emulators.
+* **Pinball Arcade**: TiLT pinball tables and MAME arcade/pinball ROM sets (launchers for emulators you install).
+
+**Amiga Studio** runs classic Amigas (A500 to A4000, 68000 to 68040, OCS/ECS/AGA) on the
+[Amiberry](https://github.com/BlitterStudio/amiberry) engine with your own Kickstart ROMs, ADF/DMS floppies and
+hard disk images. It never bundles ROMs or Workbench, protects your originals, and tells you plainly what a given
+platform can and cannot do. Start with `docs/amiga-studio/README.md`; honest status and known gaps are in
+`docs/amiga-studio/RELEASE_READINESS.md`.
+
+```bash
+cargo test --workspace                       # core + service tests
+cd apps/desktop && npm ci && npm run build   # UI
+cargo build -p amiga-devserver && node e2e/run.mjs   # browser e2e against the real backend
+```
+
 ## Features
 
 ### ROM Emulation (PinMAME Features)

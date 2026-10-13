@@ -26,11 +26,11 @@ pub enum Error {
     InsufficientSpace { needed: u64, available: u64 },
     #[error("{0} is in use by another operation or emulator session")]
     Locked(String),
-    #[error("refusing unsafe operation: {0}")]
+    #[error("{0}")]
     Unsafe(String),
-    #[error("not found: {0}")]
+    #[error("{0}")]
     NotFound(String),
-    #[error("already exists: {0}")]
+    #[error("{0} already exists")]
     AlreadyExists(String),
     #[error("operation cancelled")]
     Cancelled,
