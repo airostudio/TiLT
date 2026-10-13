@@ -30,6 +30,7 @@ fn main() {
     let mut port = 5174u16;
     let mut statik: Option<PathBuf> = None;
     let mut bundled = None;
+    let mut config_dir: Option<PathBuf> = None;
     let mut it = std::env::args().skip(1);
     while let Some(a) = it.next() {
         match a.as_str() {
@@ -37,6 +38,7 @@ fn main() {
             "--port" => port = it.next().and_then(|p| p.parse().ok()).unwrap_or(port),
             "--static" => statik = it.next().map(PathBuf::from),
             "--bundled" => bundled = it.next().map(PathBuf::from),
+            "--config-dir" => config_dir = it.next().map(PathBuf::from),
             other => {
                 eprintln!("unknown argument {other}");
                 std::process::exit(2);
@@ -47,7 +49,8 @@ fn main() {
         eprintln!("--root <storage dir> is required (use a throw-away directory)");
         std::process::exit(2);
     });
-    let svc = Service::new(amiga_service::StorageLayout::new(root), bundled).expect("open library");
+    let svc = Service::with_options(amiga_service::StorageLayout::new(root), bundled, vec![], config_dir)
+        .expect("open library");
     let server = tiny_http::Server::http(("127.0.0.1", port)).expect("bind 127.0.0.1");
     eprintln!("amiga-devserver listening on http://127.0.0.1:{port}");
     for mut req in server.incoming_requests() {

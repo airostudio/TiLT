@@ -95,6 +95,38 @@ impl Layout {
         Ok(())
     }
 
+    const POINTER_FILE: &'static str = "storage-root.txt";
+
+    /// Where the user-chosen storage location is remembered (outside the library itself,
+    /// because the library cannot be opened before its location is known).
+    pub fn pointer_path(bootstrap_dir: &Path) -> PathBuf {
+        bootstrap_dir.join(Self::POINTER_FILE)
+    }
+
+    pub fn read_pointer(bootstrap_dir: &Path) -> Option<PathBuf> {
+        let t = std::fs::read_to_string(Self::pointer_path(bootstrap_dir)).ok()?;
+        let p = PathBuf::from(t.trim());
+        (p.is_absolute() && !t.trim().is_empty()).then_some(p)
+    }
+
+    pub fn write_pointer(bootstrap_dir: &Path, root: &Path) -> Result<()> {
+        std::fs::create_dir_all(bootstrap_dir)?;
+        crate::fsutil::write_atomic(
+            &Self::pointer_path(bootstrap_dir),
+            bootstrap_dir,
+            root.to_string_lossy().as_bytes(),
+            true,
+        )
+    }
+
+    /// The storage root to use at start-up: pointer file, else portable, else OS default.
+    pub fn resolve(bootstrap_dir: Option<&Path>, portable_dir: Option<&Path>) -> PathBuf {
+        if let Some(p) = bootstrap_dir.and_then(Self::read_pointer) {
+            return p;
+        }
+        Self::default_root(portable_dir)
+    }
+
     /// Default root for this OS (Windows: %LOCALAPPDATA%, macOS: Application
     /// Support, Linux: XDG data dir). `portable_dir` wins when it contains a
     /// `portable.flag` file (portable install).
@@ -504,6 +536,18 @@ mod tests {
         let r = lib.recent_sessions(5).unwrap();
         assert_eq!(r.len(), 1);
         assert_eq!(r[0].outcome.as_deref(), Some("clean"));
+    }
+
+    #[test]
+    fn pointer_file_selects_the_root() {
+        let d = tempfile::tempdir().unwrap();
+        assert_eq!(Layout::read_pointer(d.path()), None);
+        let chosen = d.path().join("elsewhere");
+        Layout::write_pointer(d.path(), &chosen).unwrap();
+        assert_eq!(Layout::read_pointer(d.path()), Some(chosen.clone()));
+        assert_eq!(Layout::resolve(Some(d.path()), None), chosen);
+        std::fs::write(Layout::pointer_path(d.path()), "relative/path").unwrap();
+        assert_eq!(Layout::read_pointer(d.path()), None, "relative pointers are ignored");
     }
 
     #[test]

@@ -36,6 +36,8 @@ pub struct Service {
     bundled_dir: Option<PathBuf>,
     /// Extra environment for emulator launches (tests/CI use this for DISPLAY).
     launch_env: Vec<(String, String)>,
+    /// Folder holding the storage-location pointer (the app's config dir).
+    bootstrap_dir: Option<PathBuf>,
 }
 
 fn bad(msg: impl Into<String>) -> Error {
@@ -79,6 +81,15 @@ impl Service {
         bundled_dir: Option<PathBuf>,
         launch_env: Vec<(String, String)>,
     ) -> Result<Arc<Service>> {
+        Self::with_options(layout, bundled_dir, launch_env, None)
+    }
+
+    pub fn with_options(
+        layout: Layout,
+        bundled_dir: Option<PathBuf>,
+        launch_env: Vec<(String, String)>,
+        bootstrap_dir: Option<PathBuf>,
+    ) -> Result<Arc<Service>> {
         let lib = Arc::new(Library::open(layout)?);
         lib.ensure_default_profiles()?;
         Ok(Arc::new(Service {
@@ -89,6 +100,7 @@ impl Service {
             engine: Mutex::new(None),
             bundled_dir,
             launch_env,
+            bootstrap_dir,
         }))
     }
 
@@ -127,6 +139,16 @@ impl Service {
                 }))
             }
             "storage_report" => j(lib.storage_report()?),
+            "storage_location" => j(self.storage_location()),
+            "storage_set_location" => self.storage_set_location(s(a, "path")?),
+            "orphan_delete" => {
+                let target = abs(s(a, "path")?)?;
+                if !lib.find_orphans()?.iter().any(|o| o == &target) {
+                    return Err(bad("only unreferenced library files can be deleted this way"));
+                }
+                std::fs::remove_file(&target)?;
+                j(true)
+            }
             "recover" => j(lib.recover()?),
             "orphans" => j(lib.find_orphans()?.iter().map(|p| p.display().to_string()).collect::<Vec<_>>()),
 
@@ -399,6 +421,41 @@ impl Service {
             return Err(Error::Locked("this hard disk is in use by the running machine; shut it down first".into()));
         }
         Ok(())
+    }
+
+    fn storage_location(&self) -> Value {
+        let pointer = self.bootstrap_dir.as_deref().and_then(Layout::read_pointer);
+        json!({
+            "current": self.lib.layout.root.display().to_string(),
+            "default": Layout::default_root(None).display().to_string(),
+            "pointer": pointer.as_ref().map(|p| p.display().to_string()),
+            "can_change": self.bootstrap_dir.is_some(),
+            "restart_required": pointer.as_ref().is_some_and(|p| p != &self.lib.layout.root),
+        })
+    }
+
+    /// Remember a new storage location; it takes effect after a restart. Existing
+    /// data is NOT moved or deleted - the old folder stays exactly as it is.
+    fn storage_set_location(&self, path: &str) -> Result<Value> {
+        let boot = self
+            .bootstrap_dir
+            .as_deref()
+            .ok_or_else(|| Error::Unsupported("this build cannot change the storage location".into()))?;
+        let p = abs(path)?;
+        if p.to_string_lossy().contains(',') {
+            return Err(bad(
+                "choose a folder whose path has no commas (the emulator's hard disk syntax cannot express them)",
+            ));
+        }
+        if p.starts_with(&self.lib.layout.root) && p != self.lib.layout.root {
+            return Err(bad("choose a folder outside the current library"));
+        }
+        std::fs::create_dir_all(&p)?;
+        let probe = p.join(".amiga-studio-write-test");
+        std::fs::write(&probe, b"ok").map_err(|_| bad("that folder is not writable"))?;
+        let _ = std::fs::remove_file(&probe);
+        Layout::write_pointer(boot, &p)?;
+        j(self.storage_location())
     }
 
     fn session_start(self: &Arc<Self>, profile_id: &str) -> Result<Value> {
